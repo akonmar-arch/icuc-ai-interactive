@@ -1,0 +1,1184 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中轴律动 · 多模态水墨艺术可视化 | 中国传媒大学国际传媒教育学院</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-cream: #FAF6F0;
+            --ink-black: #1A1A1A;
+            --axis-color: rgba(91, 140, 126, 0.18);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-cream);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+            font-family: 'Noto Serif SC', "Georgia", serif;
+            color: var(--ink-black);
+            position: relative;
+            transition: transform 0.08s ease-out; /* Screen shake effect */
+        }
+
+        /* Subtle paper-grain texture overlay */
+        .paper-grain {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+            opacity: 0.04;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+        }
+
+        /* The Beijing Central Axis (北京中轴线) */
+        .central-axis {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 50%;
+            width: 1px;
+            background: linear-gradient(
+                to bottom,
+                transparent,
+                var(--axis-color) 15%,
+                var(--axis-color) 85%,
+                transparent
+            );
+            pointer-events: none;
+            z-index: 3;
+            transition: background 0.3s ease;
+        }
+
+        header {
+            text-align: center;
+            margin-top: 5vh;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        h1 {
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: 0.3em;
+            color: var(--ink-black);
+            text-indent: 0.3em;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            font-size: 11px;
+            font-weight: 300;
+            letter-spacing: 0.15em;
+            color: #8A857C;
+            text-transform: uppercase;
+        }
+
+        /* Multimodal Control Console */
+        .console-panel {
+            position: absolute;
+            top: 24px;
+            left: 24px;
+            z-index: 20;
+            background: rgba(250, 246, 240, 0.85);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(26, 26, 26, 0.08);
+            border-radius: 6px;
+            padding: 16px;
+            width: 280px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.02);
+            transition: all 0.3s ease;
+        }
+
+        .console-title {
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            margin-bottom: 12px;
+            border-bottom: 1px solid rgba(26, 26, 26, 0.05);
+            padding-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .toggle-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            font-size: 11px;
+        }
+
+        /* Beautiful Switch */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 34px;
+            height: 18px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(26, 26, 26, 0.15);
+            transition: .3s;
+            border-radius: 18px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 12px;
+            width: 12px;
+            left: 3px;
+            bottom: 3px;
+            background-color: var(--bg-cream);
+            transition: .3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: #5B8C7E;
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(16px);
+        }
+
+        /* Legend box */
+        .legend-box {
+            margin-top: 12px;
+            padding-top: 8px;
+            border-top: 1px dashed rgba(26, 26, 26, 0.1);
+            font-size: 10px;
+            color: #8A857C;
+            line-height: 1.6;
+        }
+
+        .canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Controls Dashboard */
+        .controls-container {
+            width: 100%;
+            max-width: 480px;
+            padding: 40px 24px;
+            margin-bottom: 4vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            z-index: 10;
+        }
+
+        .track-info {
+            font-size: 12px;
+            font-weight: 300;
+            letter-spacing: 0.12em;
+            color: #8A857C;
+            text-align: center;
+            max-width: 100%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-height: 18px;
+        }
+
+        .actions {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .btn {
+            background: transparent;
+            border: 1px solid rgba(26, 26, 26, 0.15);
+            padding: 10px 24px;
+            border-radius: 2px;
+            font-family: 'Noto Serif SC', serif;
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 0.15em;
+            cursor: pointer;
+            color: #55524D;
+            transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn:hover {
+            border-color: var(--ink-black);
+            color: var(--ink-black);
+            background-color: rgba(26, 26, 26, 0.02);
+            transform: translateY(-1px);
+        }
+
+        /* Play/Pause Button - ALWAYS ENABLED in v2.0 */
+        .play-pause-btn {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background-color: #5B8C7E;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.4s cubic-bezier(0.25, 1, 0.5, 1);
+            box-shadow: 0 4px 15px rgba(91, 140, 126, 0.2);
+            pointer-events: auto;
+        }
+
+        .play-pause-btn:hover {
+            transform: scale(1.08);
+            box-shadow: 0 6px 20px rgba(91, 140, 126, 0.35);
+        }
+
+        .play-pause-btn svg {
+            fill: var(--bg-cream);
+            width: 14px;
+            height: 14px;
+        }
+
+        .hidden-input {
+            display: none;
+        }
+
+
+/* 中国传媒大学国际传媒教育学院教学标识。 */
+.cuc-context-bar {
+  box-sizing: border-box; min-height: 44px; padding: 6px clamp(12px, 3vw, 28px);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  background: #fff; color: #32135c; border-bottom: 1px solid #e7e0ee;
+  font: 500 12px/1.35 system-ui, -apple-system, "Segoe UI", sans-serif;
+  letter-spacing: 0; text-align: left;
+}
+.cuc-context-bar .cuc-context-identity { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.cuc-context-bar img.cuc-logo { display: block; width: clamp(190px, 24vw, 280px); height: auto; max-width: 46vw; flex: none; }
+.cuc-context-bar .cuc-context-label { display: block; min-width: 0; }
+.cuc-context-bar a { color: #32135c; flex: none; text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; }
+.cuc-context-bar a:hover { color: #60389c; }
+.cuc-context-bar a:focus-visible { outline: 2px solid #60389c; outline-offset: 3px; }
+@media (max-width: 620px) {
+  .cuc-context-bar { flex-wrap: wrap; gap: 4px 8px; font-size: 10px; min-height: 52px; }
+  .cuc-context-bar .cuc-context-identity { flex: 1 1 100%; gap: 8px; }
+  .cuc-context-bar img.cuc-logo { width: 190px; height: auto; }
+  .cuc-context-bar a { font-size: 10px; margin-left: auto; }
+}
+
+/* 全屏示例顶部预留学院标识栏。 */
+.cuc-context-bar { position: fixed; inset: 0 0 auto 0; z-index: 300; }
+body > header { margin-top: max(68px, 8vh); }
+.console-panel { top: 70px; }
+@media (max-width: 620px) { body > header { margin-top: 78px; } .console-panel { top: 80px; } }
+
+</style>
+</head>
+<body>
+<div class="cuc-context-bar">
+  <div class="cuc-context-identity">
+    <img src="../assets/cuc-logo.jpg" class="cuc-logo" alt="中国传媒大学国际传媒教育学院标识" width="2480" height="475">
+    <span class="cuc-context-label">中国传媒大学国际传媒教育学院</span>
+  </div>
+  <a href="../index.html" aria-label="返回音乐可视化课程首页">课程首页 ↗</a>
+</div>
+
+
+    <div class="paper-grain"></div>
+    <div class="central-axis" id="axis-line"></div>
+
+    <!-- Multimodal Control Dashboard -->
+    <div class="console-panel">
+        <div class="console-title">
+            <span>交互面板</span>
+            <span style="opacity: 0.5; font-weight: 300;">版本 2.1</span>
+        </div>
+        
+        <div class="toggle-row">
+            <span>🎤 麦克风音频接入</span>
+            <label class="switch">
+                <input type="checkbox" id="mic-toggle">
+                <span class="slider"></span>
+            </label>
+        </div>
+
+        <div class="toggle-row">
+            <span>📷 摄像头头部追踪</span>
+            <label class="switch">
+                <input type="checkbox" id="webcam-toggle">
+                <span class="slider"></span>
+            </label>
+        </div>
+
+        <div class="legend-box">
+            • <b>鼠标滚轮</b>: 调整水墨冷暖色调温差<br>
+            • <b>拖拽点击</b>: 在宣纸上提笔画出水墨残影<br>
+            • <b>点击页面</b>: 激发强烈空间扭曲冲击波<br>
+            • <b>大声拍手</b>: 麦克风开启后激发墨滴瞬间炸裂<br>
+        </div>
+    </div>
+
+    <header>
+        <h1>中轴律动</h1>
+        <div class="subtitle">多模态水墨艺术可视化</div>
+    </header>
+
+    <div class="canvas-container">
+        <canvas id="sumie-canvas"></canvas>
+    </div>
+
+    <div class="controls-container">
+        <div id="track-name" class="track-info">可直接播放内置禅意合成器，或选择本地曲目</div>
+        
+        <div class="actions">
+            <input type="file" id="audio-file" class="hidden-input" accept="audio/*">
+            
+            <button class="btn" onclick="document.getElementById('audio-file').click()">
+                选择音频
+            </button>
+
+            <button id="play-pause" class="play-pause-btn" aria-label="播放或暂停">
+                <svg id="play-icon" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z"/>
+                </svg>
+                <svg id="pause-icon" viewBox="0 0 24 24" style="display: none;">
+                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+
+    <audio id="audio-element" crossorigin="anonymous" loop></audio>
+
+    <script>
+        const canvas = document.getElementById('sumie-canvas');
+        const ctx = canvas.getContext('2d');
+        const audio = document.getElementById('audio-element');
+        const fileInput = document.getElementById('audio-file');
+        const playPauseBtn = document.getElementById('play-pause');
+        const playIcon = document.getElementById('play-icon');
+        const pauseIcon = document.getElementById('pause-icon');
+        const trackNameLabel = document.getElementById('track-name');
+        const axisLine = document.getElementById('axis-line');
+
+        // Dynamic Interaction switches
+        const micToggle = document.getElementById('mic-toggle');
+        const webcamToggle = document.getElementById('webcam-toggle');
+
+        // Web Audio global contexts
+        let audioCtx;
+        let analyser;
+        let source;
+        let animationFrameId;
+
+        // Procedural synth sequencer variables
+        let proceduralInterval = null;
+        let isProceduralPlaying = false;
+
+        // Custom Mic variables
+        let micStream;
+        let micAnalyser;
+        let micSource;
+        let micVolume = 0;
+        let prevMicVolume = 0;
+
+        // Color temperature configurations (Interpolates dynamically via Scroll Wheel)
+        let colorTone = 0.4; // 0 = Cool (Jade), 1 = Warm (Bronze/Red)
+        
+        // Parallax coordinates featuring 0.3s dampening lag (Lag target)
+        let mouseX = 0, mouseY = 0;
+        let targetMouseX = 0, targetMouseY = 0;
+        const trackingLag = 0.08; // Roughly 0.3s at 60fps to match tracking speed smoothly
+
+        // Entities repositories
+        const splatters = [];
+        const shockwaves = [];
+        const brushPoints = []; // Holds temporary paint brush strokes
+        let splatterCooldown = 0;
+
+        // Adaptive Beat Detection threshold variables
+        let beatThreshold = 0.45;
+        const decayRate = 0.08;
+        let smoothedBass = 0;
+        let noisePhase = 0;
+
+        
+        // Space Warp Shockwave solver
+        class Shockwave {
+            constructor(x, y, intensity) {
+                this.cx = x;
+                this.cy = y;
+                this.radius = 0;
+                this.maxRadius = Math.max(window.innerWidth, window.innerHeight) * 1.2;
+                this.speed = 12 + intensity * 15;
+                this.width = 130;
+                this.strength = 50 * intensity;
+                this.alpha = 1.0;
+                this.decay = 0.015;
+            }
+
+            update() {
+                this.radius += this.speed;
+                this.alpha -= this.decay;
+            }
+
+            isDead() {
+                return this.alpha <= 0 || this.radius > this.maxRadius;
+            }
+
+            getDisplacement(px, py) {
+                const dx = px - this.cx;
+                const dy = py - this.cy;
+                const dist = Math.hypot(dx, dy);
+
+                if (dist === 0) return { x: 0, y: 0 };
+
+                const distFromWave = Math.abs(dist - this.radius);
+
+                if (distFromWave < this.width) {
+                    const factor = 1 - (distFromWave / this.width);
+                    const warpMagnitude = Math.sin(factor * Math.PI) * this.strength * this.alpha;
+                    
+                    return {
+                        x: (dx / dist) * warpMagnitude,
+                        y: (dy / dist) * warpMagnitude
+                    };
+                }
+                return { x: 0, y: 0 };
+            }
+
+            draw(context) {
+                context.save();
+                const toneColor = getToneColor(colorTone);
+                context.strokeStyle = `rgba(${toneColor.r}, ${toneColor.g}, ${toneColor.b}, ${0.12 * this.alpha})`;
+                context.lineWidth = 8 * this.alpha;
+                context.beginPath();
+
+                const segments = 90;
+                for (let i = 0; i <= segments; i++) {
+                    const angle = (i / segments) * Math.PI * 2;
+                    const wobble = Math.sin(angle * 6 + this.radius * 0.03) * 6;
+                    const r = this.radius + wobble;
+                    const px = this.cx + Math.cos(angle) * r;
+                    const py = this.cy + Math.sin(angle) * r;
+
+                    if (i === 0) context.moveTo(px, py);
+                    else context.lineTo(px, py);
+                }
+                context.stroke();
+                context.restore();
+            }
+        }
+
+        // Passes coordinates through active space warps
+        function getWarpedPoint(px, py) {
+            let wx = px;
+            let wy = py;
+
+            for (let i = 0; i < shockwaves.length; i++) {
+                const disp = shockwaves[i].getDisplacement(px, py);
+                wx += disp.x;
+                wy += disp.y;
+            }
+
+            return { x: wx, y: wy };
+        }
+
+        // Dynamic ink droplet
+        class InkSplatter {
+            constructor(x, y, angle, speed, size, coreColor, glowColor) {
+                this.x = x;
+                this.y = y;
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed;
+                this.initialSize = size;
+                this.size = size;
+                this.maxSize = size * (2.0 + Math.random() * 2.0);
+                this.alpha = 1.0;
+                this.coreColor = coreColor;
+                this.glowColor = glowColor;
+                this.decay = 0.009 + Math.random() * 0.012;
+                this.friction = 0.93;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vx *= this.friction;
+                this.vy *= this.friction;
+
+                const currentSpeed = Math.hypot(this.vx, this.vy);
+                if (currentSpeed < 0.4) {
+                    this.size += (this.maxSize - this.size) * 0.06;
+                    this.alpha -= this.decay * 1.6;
+                } else {
+                    this.alpha -= this.decay * 0.35;
+                }
+            }
+
+            draw(context) {
+                if (this.alpha <= 0) return;
+                context.save();
+                
+                const warped = getWarpedPoint(this.x, this.y);
+
+                // Aura pass
+                context.beginPath();
+                context.globalAlpha = this.alpha * 0.35;
+                context.fillStyle = this.glowColor;
+                context.arc(warped.x, warped.y, this.size * 3.0, 0, Math.PI * 2);
+                context.fill();
+
+                // Solid Core pass
+                context.beginPath();
+                context.globalAlpha = this.alpha;
+                context.fillStyle = this.coreColor;
+                context.arc(warped.x, warped.y, this.size, 0, Math.PI * 2);
+                context.fill();
+
+                context.restore();
+            }
+        }
+
+        // Dynamically shifts colors based on wheel scroll values
+        function getToneColor(tone) {
+            const cool = { r: 91, g: 140, b: 126 }; // Jade green
+            const warm = { r: 176, g: 141, b: 87 }; // Bronze red
+            return {
+                r: Math.round(cool.r + (warm.r - cool.r) * tone),
+                g: Math.round(cool.g + (warm.g - cool.g) * tone),
+                b: Math.round(cool.b + (warm.b - cool.b) * tone)
+            };
+        }
+
+        function resizeCanvas() {
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = window.innerWidth * dpr;
+            canvas.height = window.innerHeight * dpr;
+            ctx.scale(dpr, dpr);
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+
+        // Screen Shake Effect
+        function triggerScreenShake(magnitude) {
+            document.body.style.transform = `translate(${(Math.random() - 0.5) * magnitude}px, ${(Math.random() - 0.5) * magnitude}px)`;
+            setTimeout(() => {
+                document.body.style.transform = 'translate(0, 0)';
+            }, 80);
+        }
+
+        // Procedural Beat Synth Scheduler
+        function playProceduralBeat() {
+            if (!audioCtx || audioCtx.state === 'suspended') return;
+            const now = audioCtx.currentTime;
+
+            // 1. Bass Kick to trigger visualizer beats natively!
+            const kickOsc = audioCtx.createOscillator();
+            const kickGain = audioCtx.createGain();
+            kickOsc.connect(kickGain);
+            kickGain.connect(analyser); // Plugs directly into general visualizer chain
+
+            kickOsc.frequency.setValueAtTime(160, now);
+            kickOsc.frequency.exponentialRampToValueAtTime(0.01, now + 0.35);
+            kickGain.gain.setValueAtTime(1.2, now);
+            kickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+
+            kickOsc.start(now);
+            kickOsc.stop(now + 0.35);
+
+            // 2. Sustained pentatonic synth notes
+            if (Math.random() > 0.4) {
+                const noteOsc = audioCtx.createOscillator();
+                const noteGain = audioCtx.createGain();
+                noteOsc.connect(noteGain);
+                noteGain.connect(analyser);
+
+                const scales = [392.00, 440.00, 523.25, 587.33, 659.25, 783.99]; // G4 Pentatonic scale
+                const freq = scales[Math.floor(Math.random() * scales.length)];
+
+                noteOsc.type = 'sine';
+                noteOsc.frequency.setValueAtTime(freq, now);
+                noteGain.gain.setValueAtTime(0.001, now);
+                noteGain.gain.exponentialRampToValueAtTime(0.12, now + 0.25);
+                noteGain.gain.exponentialRampToValueAtTime(0.001, now + 2.4);
+
+                noteOsc.start(now);
+                noteOsc.stop(now + 2.4);
+            }
+        }
+
+        function startProceduralSynth() {
+            initAudioAnalyzer();
+            isProceduralPlaying = true;
+            trackNameLabel.textContent = "🔊 内置禅意合成器循环播放中…";
+            trackNameLabel.style.color = '#5B8C7E';
+            if (proceduralInterval) clearInterval(proceduralInterval);
+            playProceduralBeat();
+            proceduralInterval = setInterval(playProceduralBeat, 1200); // 50 BPM Ambient loop
+        }
+
+        function stopProceduralSynth() {
+            isProceduralPlaying = false;
+            if (proceduralInterval) {
+                clearInterval(proceduralInterval);
+                proceduralInterval = null;
+            }
+        }
+
+
+        // Scroll wheel event mapping to color tone shift
+        window.addEventListener('wheel', (e) => {
+            if (e.deltaY < 0) {
+                colorTone = Math.min(1.0, colorTone + 0.05);
+            } else {
+                colorTone = Math.max(0.0, colorTone - 0.05);
+            }
+            const activeColor = getToneColor(colorTone);
+            axisLine.style.setProperty('--axis-color', `rgba(${activeColor.r}, ${activeColor.g}, ${activeColor.b}, 0.2)`);
+        });
+
+        // Drag-and-draw brush tracking variables
+        let isDrawing = false;
+        let lastDrawX = null;
+        let lastDrawY = null;
+
+        function addPointDirectly(px, py) {
+            brushPoints.push({
+                x: px,
+                y: py,
+                alpha: 1.0,
+                width: 7 + Math.random() * 9, // dynamic organic brush hairs
+                seed: Math.random() * 10
+            });
+        }
+
+        function handleDragStart(e, clientX, clientY) {
+            // Prevent interference with control boards
+            if (e.target.closest('.console-panel') || e.target.closest('.controls-container') || e.target.closest('header')) return;
+            isDrawing = true;
+            
+            const rect = canvas.getBoundingClientRect();
+            const px = clientX - rect.left;
+            const py = clientY - rect.top;
+
+            lastDrawX = px;
+            lastDrawY = py;
+            addPointDirectly(px, py);
+
+            shockwaves.push(new Shockwave(px, py, 0.65));
+        }
+
+        function handleDragMove(clientX, clientY) {
+            targetMouseX = (clientX - window.innerWidth / 2) / (window.innerWidth / 2);
+            targetMouseY = (clientY - window.innerHeight / 2) / (window.innerHeight / 2);
+
+            if (isDrawing) {
+                const rect = canvas.getBoundingClientRect();
+                const px = clientX - rect.left;
+                const py = clientY - rect.top;
+
+                if (lastDrawX !== null && lastDrawY !== null) {
+                    // Path Interpolation to make continuous smooth brush strokes
+                    const dist = Math.hypot(px - lastDrawX, py - lastDrawY);
+                    const steps = Math.max(1, Math.floor(dist / 3)); // Step points every 3px
+                    for (let i = 1; i <= steps; i++) {
+                        const t = i / steps;
+                        const ix = lastDrawX + (px - lastDrawX) * t;
+                        const iy = lastDrawY + (py - lastDrawY) * t;
+                        addPointDirectly(ix, iy);
+                    }
+                } else {
+                    addPointDirectly(px, py);
+                }
+
+                lastDrawX = px;
+                lastDrawY = py;
+            }
+        }
+
+        window.addEventListener('mousedown', (e) => handleDragStart(e, e.clientX, e.clientY));
+        window.addEventListener('mousemove', (e) => handleDragMove(e.clientX, e.clientY));
+        window.addEventListener('mouseup', () => { isDrawing = false; lastDrawX = null; lastDrawY = null; });
+        window.addEventListener('mouseleave', () => { isDrawing = false; lastDrawX = null; lastDrawY = null; });
+
+        // Microphone stream
+        micToggle.addEventListener('change', async () => {
+            if (micToggle.checked) {
+                try {
+                    micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    const audioContextClass = window.AudioContext || window.webkitAudioContext;
+                    const tempAudioCtx = audioCtx || new audioContextClass();
+                    if (!audioCtx) audioCtx = tempAudioCtx;
+
+                    micAnalyser = audioCtx.createAnalyser();
+                    micAnalyser.fftSize = 256;
+                    micSource = audioCtx.createMediaStreamSource(micStream);
+                    micSource.connect(micAnalyser);
+                } catch (err) {
+                    console.error("麦克风权限请求失败：", err);
+                    micToggle.checked = false;
+                }
+            } else {
+                if (micStream) {
+                    micStream.getTracks().forEach(track => track.stop());
+                    micStream = null;
+                }
+                micAnalyser = null;
+            }
+        });
+
+        // Webcam stream
+        const webcamVideo = document.createElement('video');
+        webcamVideo.autoplay = true;
+        const webcamCanvas = document.createElement('canvas');
+        webcamCanvas.width = 40;
+        webcamCanvas.height = 30;
+        const webcamCtx = webcamCanvas.getContext('2d');
+        let prevWebcamFrame = null;
+        let webcamParallaxX = 0;
+        let cameraStream = null;
+
+        webcamToggle.addEventListener('change', async () => {
+            if (webcamToggle.checked) {
+                try {
+                    cameraStream = await navigator.mediaDevices.getUserMedia({ video: { width: 160, height: 120 } });
+                    webcamVideo.srcObject = cameraStream;
+                    webcamVideo.play();
+                } catch (err) {
+                    console.error("摄像头权限请求失败：", err);
+                    webcamToggle.checked = false;
+                }
+            } else {
+                if (cameraStream) {
+                    cameraStream.getTracks().forEach(track => track.stop());
+                    cameraStream = null;
+                }
+                prevWebcamFrame = null;
+                webcamParallaxX = 0;
+            }
+        });
+
+        // Massive splash explosion
+        function triggerInkExplosion() {
+            const width = canvas.width / (window.devicePixelRatio || 1);
+            const height = canvas.height / (window.devicePixelRatio || 1);
+            const cx = width / 2 + mouseX * 25;
+            const cy = height / 2 + mouseY * 25;
+
+            const burstCount = 45;
+            shockwaves.push(new Shockwave(cx, cy, 0.9));
+            triggerScreenShake(12);
+
+            for (let i = 0; i < burstCount; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 4.0 + Math.random() * 10.0;
+                const size = 1.5 + Math.random() * 4.5;
+
+                const toneVal = getToneColor(colorTone);
+                const coreColor = `rgba(${toneVal.r}, ${toneVal.g}, ${toneVal.b}, 0.95)`;
+                const glowColor = `rgba(${toneVal.r}, ${toneVal.g}, ${toneVal.b}, 0.45)`;
+
+                splatters.push(new InkSplatter(cx, cy, angle, speed, size, coreColor, glowColor));
+            }
+        }
+
+        // Local file uploading
+        fileInput.addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const cleanName = file.name.replace(/\.[^/.]+$/, "");
+            trackNameLabel.textContent = cleanName;
+            trackNameLabel.style.color = '#1A1A1A';
+
+            // Clean up procedural sound if running
+            if (isProceduralPlaying) {
+                stopProceduralSynth();
+            }
+
+            const objectURL = URL.createObjectURL(file);
+            audio.src = objectURL;
+            pauseAudio();
+        });
+
+        function initAudioAnalyzer() {
+            if (audioCtx) return;
+
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioCtx.createAnalyser();
+            analyser.fftSize = 256;
+            
+            try {
+                source = audioCtx.createMediaElementSource(audio);
+                source.connect(analyser);
+            } catch(e) {
+                console.warn("音频源初始化失败：", e);
+            }
+            analyser.connect(audioCtx.destination);
+        }
+
+        playPauseBtn.addEventListener('click', () => {
+            initAudioAnalyzer();
+
+            if (audio.src) {
+                // Play local file
+                if (audio.paused) {
+                    playAudio();
+                } else {
+                    pauseAudio();
+                }
+            } else {
+                // Play built-in ambient procedural beat!
+                if (!isProceduralPlaying) {
+                    startProceduralSynth();
+                    playIcon.style.display = 'none';
+                    pauseIcon.style.display = 'block';
+                    if (!animationFrameId) render();
+                } else {
+                    stopProceduralSynth();
+                    trackNameLabel.textContent = "可直接播放内置禅意合成器，或选择本地曲目";
+                    trackNameLabel.style.color = '#8A857C';
+                    playIcon.style.display = 'block';
+                    pauseIcon.style.display = 'none';
+                }
+            }
+        });
+
+        function playAudio() {
+            if (audioCtx && audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            audio.play();
+            playIcon.style.display = 'none';
+            pauseIcon.style.display = 'block';
+            
+            if (!animationFrameId) {
+                render();
+            }
+        }
+
+        function pauseAudio() {
+            audio.pause();
+            playIcon.style.display = 'block';
+            pauseIcon.style.display = 'none';
+        }
+
+        function drawSumiRing(context, cx, cy, baseRadius, thickness, color, intensity, phase, noiseSeed) {
+            context.save();
+            context.strokeStyle = color;
+            context.lineWidth = thickness * (1.0 + intensity * 0.8);
+            context.lineCap = 'round';
+            context.lineJoin = 'round';
+
+            context.beginPath();
+            const segments = 100;
+            
+            for (let i = 0; i <= segments; i++) {
+                const angle = (i / segments) * Math.PI * 2;
+                
+                const radialWobble = Math.sin(angle * 4 + phase + noiseSeed) * 5 + 
+                                     Math.cos(angle * 10 - phase * 0.5) * 3;
+                
+                const dynamicRadius = baseRadius + radialWobble + (intensity * baseRadius * 0.35);
+                
+                const rawX = cx + Math.cos(angle) * dynamicRadius;
+                const rawY = cy + Math.sin(angle) * dynamicRadius;
+
+                // Process coordinates through active space warp
+                const warped = getWarpedPoint(rawX, rawY);
+
+                if (i === 0) context.moveTo(warped.x, warped.y);
+                else context.lineTo(warped.x, warped.y);
+            }
+            context.stroke();
+            context.restore();
+        }
+
+        function render() {
+            animationFrameId = requestAnimationFrame(render);
+
+            const width = canvas.width / (window.devicePixelRatio || 1);
+            const height = canvas.height / (window.devicePixelRatio || 1);
+            const cx = width / 2;
+            const cy = height / 2;
+
+            // Silky persistence trail clearing
+            ctx.save();
+            ctx.fillStyle = 'rgba(250, 246, 240, 0.08)'; 
+            ctx.fillRect(0, 0, width, height);
+            ctx.restore();
+
+            // Parallax mouse update featuring the 0.3s lag factor (Dampening lerp)
+            mouseX += (targetMouseX - mouseX) * trackingLag;
+            mouseY += (targetMouseY - mouseY) * trackingLag;
+
+            // Webcam Real-time Frame Differencing
+            if (webcamToggle.checked && webcamVideo.readyState === webcamVideo.HAVE_ENOUGH_DATA) {
+                webcamCtx.drawImage(webcamVideo, 0, 0, 40, 30);
+                const frame = webcamCtx.getImageData(0, 0, 40, 30);
+                const data = frame.data;
+
+                if (prevWebcamFrame) {
+                    let totalDiffX = 0;
+                    let diffCount = 0;
+
+                    for (let i = 0; i < data.length; i += 4) {
+                        const rD = Math.abs(data[i] - prevWebcamFrame[i]);
+                        const gD = Math.abs(data[i+1] - prevWebcamFrame[i+1]);
+                        const bD = Math.abs(data[i+2] - prevWebcamFrame[i+2]);
+
+                        if (rD + gD + bD > 70) {
+                            const pixelIndex = i / 4;
+                            const pxX = pixelIndex % 40;
+                            totalDiffX += pxX;
+                            diffCount++;
+                        }
+                    }
+
+                    if (diffCount > 10) {
+                        const centroidX = totalDiffX / diffCount;
+                        const targetCameraShift = -((centroidX / 20) - 1.0);
+                        webcamParallaxX += (targetCameraShift - webcamParallaxX) * 0.1;
+                    }
+                }
+                prevWebcamFrame = data;
+            }
+
+            const combinedOffsetMultiplierX = mouseX + webcamParallaxX * 1.5;
+
+            // Voice Mic capture process
+            if (micAnalyser) {
+                const micData = new Uint8Array(micAnalyser.frequencyBinCount);
+                micAnalyser.getByteFrequencyData(micData);
+                let sum = 0;
+                for (let i = 0; i < micData.length; i++) sum += micData[i];
+                micVolume = sum / micData.length;
+
+                // Clap transient spike analysis -> explosion
+                const deltaVolume = micVolume - prevMicVolume;
+                if (deltaVolume > 32 && micVolume > 35) {
+                    triggerInkExplosion();
+                }
+                prevMicVolume = micVolume;
+            } else {
+                micVolume = 0;
+            }
+
+            // Standard music spectral analysis (Works for MP3 and built-in synth oscillators!)
+            let rawBass = 0;
+            let currentNormalizedBass = 0;
+
+            if (analyser) {
+                const bufferLength = analyser.frequencyBinCount;
+                const dataArray = new Uint8Array(bufferLength);
+                analyser.getByteFrequencyData(dataArray);
+
+                let bassSum = 0;
+                const bassBins = 3;
+                for (let i = 0; i < bassBins; i++) {
+                    bassSum += dataArray[i];
+                }
+                rawBass = bassSum / bassBins;
+                currentNormalizedBass = rawBass / 255.0;
+            }
+
+            // Smooth dynamic reactions
+            const interpolationFactor = 0.15;
+            smoothedBass += (currentNormalizedBass - smoothedBass) * interpolationFactor;
+            noisePhase += 0.02 + smoothedBass * 0.08;
+
+            if (splatterCooldown > 0) splatterCooldown--;
+
+            // Adaptive Beat Detection
+            if (currentNormalizedBass > beatThreshold && currentNormalizedBass > 0.32 && splatterCooldown === 0) {
+                const burstCount = Math.floor(28 + Math.random() * 8);
+                const sourceRadius = 90 + (smoothedBass * 90 * 0.35);
+
+                const centerWarpedX = cx + combinedOffsetMultiplierX * 25;
+                const centerWarpedY = cy + mouseY * 25;
+
+                shockwaves.push(new Shockwave(centerWarpedX, centerWarpedY, currentNormalizedBass));
+                triggerScreenShake(smoothedBass * 6);
+
+                for (let i = 0; i < burstCount; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const spawnX = centerWarpedX + Math.cos(angle) * sourceRadius;
+                    const spawnY = centerWarpedY + Math.sin(angle) * sourceRadius;
+
+                    const speed = 2.5 + Math.random() * 7.5 + (currentNormalizedBass * 5.0);
+                    const size = 1.2 + Math.random() * 3.8;
+
+                    let coreColor, glowColor;
+                    const rand = Math.random();
+                    const toneVal = getToneColor(colorTone);
+                    
+                    if (rand > 0.5) {
+                        coreColor = `rgba(${toneVal.r}, ${toneVal.g}, ${toneVal.b}, 0.95)`;
+                        glowColor = `rgba(${toneVal.r}, ${toneVal.g}, ${toneVal.b}, 0.45)`;
+                    } else if (rand > 0.15) {
+                        coreColor = '#2F2F2F';
+                        glowColor = 'rgba(26, 26, 26, 0.25)';
+                    } else {
+                        coreColor = '#FFF2D4';
+                        glowColor = 'rgba(255, 242, 212, 0.6)';
+                    }
+                    
+                    splatters.push(new InkSplatter(spawnX, spawnY, angle, speed, size, coreColor, glowColor));
+                }
+
+                beatThreshold = currentNormalizedBass * 1.15;
+                splatterCooldown = 8;
+            } else {
+                beatThreshold += (currentNormalizedBass * 1.05 - beatThreshold) * decayRate;
+                beatThreshold = Math.max(beatThreshold, 0.42);
+            }
+
+            // Shockwaves rendering
+            for (let i = shockwaves.length - 1; i >= 0; i--) {
+                shockwaves[i].update();
+                shockwaves[i].draw(ctx);
+                if (shockwaves[i].isDead()) {
+                    shockwaves.splice(i, 1);
+                }
+            }
+
+            // Splatter Particles rendering
+            for (let i = splatters.length - 1; i >= 0; i--) {
+                splatters[i].update();
+                splatters[i].draw(ctx);
+                if (splatters[i].alpha <= 0) {
+                    splatters.splice(i, 1);
+                }
+            }
+
+            // Render trailing drag brush-strokes
+            for (let i = brushPoints.length - 1; i >= 0; i--) {
+                const pt = brushPoints[i];
+                pt.alpha -= 0.006; // Smooth watercolor decay into rice paper
+
+                if (pt.alpha <= 0) {
+                    brushPoints.splice(i, 1);
+                    continue;
+                }
+
+                ctx.save();
+                ctx.globalAlpha = pt.alpha;
+                const activeColor = getToneColor(colorTone);
+                ctx.fillStyle = `rgba(${activeColor.r}, ${activeColor.g}, ${activeColor.b}, ${0.7 * pt.alpha})`;
+                
+                const wobbleX = Math.sin(pt.seed + pt.alpha * 10) * 3;
+                const wobbleY = Math.cos(pt.seed + pt.alpha * 10) * 3;
+
+                const warpedPt = getWarpedPoint(pt.x + wobbleX, pt.y + wobbleY);
+
+                ctx.beginPath();
+                ctx.arc(warpedPt.x, warpedPt.y, pt.width * pt.alpha, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+
+            const coreTone = getToneColor(colorTone);
+            const ring1Color = `rgba(${coreTone.r}, ${coreTone.g}, ${coreTone.b}, 0.04)`;
+            const ring2Color = `rgba(${coreTone.r}, ${coreTone.g}, ${coreTone.b}, 0.85)`;
+            const ring3Color = `rgba(${coreTone.r}, ${coreTone.g}, ${coreTone.b}, 0.25)`;
+
+            // Layer 1: Background outer ink wash (Minimal parallax speed offset)
+            const layer1X = cx + combinedOffsetMultiplierX * 10;
+            const layer1Y = cy + mouseY * 10;
+            drawSumiRing(ctx, layer1X, layer1Y, 120, 16, ring1Color, smoothedBass, noisePhase, 100);
+
+            // Layer 2: Main ink brush stroke (Middle depth speed offset)
+            const layer2X = cx + combinedOffsetMultiplierX * 25;
+            const layer2Y = cy + mouseY * 25;
+            drawSumiRing(ctx, layer2X, layer2Y, 90, 8, ring2Color, smoothedBass, noisePhase, 0);
+
+            // Layer 3: Dynamic accent core ring (Foreground speed offset)
+            const layer3X = cx + combinedOffsetMultiplierX * 45;
+            const layer3Y = cy + mouseY * 45;
+            drawSumiRing(ctx, layer3X, layer3Y, 50, 4, ring3Color, smoothedBass, -noisePhase * 0.7, 50);
+
+            // Microphone reactive inner golden core circle / Halo rings
+            if (micAnalyser && micVolume > 2) {
+                ctx.save();
+                const micScale = 12 + (micVolume / 255) * 65;
+                const centerWarped = getWarpedPoint(layer3X, layer3Y);
+                
+                // Outer acoustic halo ring
+                ctx.beginPath();
+                ctx.strokeStyle = `rgba(${coreTone.r}, ${coreTone.g}, ${coreTone.b}, ${Math.min(1.0, micVolume / 40)})`;
+                ctx.lineWidth = 1.5;
+                ctx.arc(centerWarped.x, centerWarped.y, micScale * 1.8, 0, Math.PI * 2);
+                ctx.stroke();
+
+                // Dynamic glowing gold core
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = `rgba(${coreTone.r}, ${coreTone.g}, ${coreTone.b}, 0.9)`;
+                ctx.fillStyle = '#FFFFFF';
+                
+                ctx.beginPath();
+                ctx.arc(centerWarped.x, centerWarped.y, micScale, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            } else {
+                // Static charcoal center spot
+                ctx.save();
+                const warpedCenter = getWarpedPoint(layer3X, layer3Y);
+                ctx.fillStyle = 'rgba(26, 26, 26, 0.15)';
+                ctx.beginPath();
+                ctx.arc(warpedCenter.x, warpedCenter.y, 15 + smoothedBass * 18, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        // Initialize frame logic immediately
+        render();
+    </script>
+</body>
+</html>

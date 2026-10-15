@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<meta content="#1A1A1A" name="theme-color"/>
+<meta content="index, follow" name="robots"/>
+<title>一步步做出「水墨圆环」 | 中国传媒大学国际传媒教育学院</title>
+<meta content="把案例 A「水墨圆环」音乐可视化页面拆成 11 步，每一步给出可直接复制的 Gemini 中文提示词，从空白宣纸到随声音泼墨、可拖动作画、麦克风与摄像头互动的完整作品。" name="description"/>
+<meta content="中国传媒大学国际传媒教育学院" name="author"/>
+<meta content="article" property="og:type"/>
+<meta content="灵境工坊 · 中国传媒大学国际传媒教育学院" property="og:site_name"/>
+<meta content="一步步做出「水墨圆环」" property="og:title"/>
+<meta content="案例 A 深入拆解：11 条可复制的 Gemini 中文提示词，从空白宣纸做到随声音反应的水墨可视化。" property="og:description"/>
+<meta content="zh_CN" property="og:locale"/>
+<link href="data:image/svg+xml;utf8,&lt;svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'&gt;&lt;rect width='64' height='64' rx='12' fill='%23FAF6F0'/&gt;&lt;path d='M32 12 C34 24, 40 30, 52 32 C40 34, 34 40, 32 52 C30 40, 24 34, 12 32 C24 30, 30 24, 32 12 Z' fill='%23B08D57'/&gt;&lt;/svg&gt;" rel="icon" type="image/svg+xml"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;800&amp;family=Noto+Sans+SC:wght@300;400;500&amp;family=Cormorant+Garamond:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600&amp;display=swap" rel="stylesheet"/>
+<style>
+  /* ============ Reset & tokens (shared with the rest of the site) ============ */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; scroll-padding-top: 80px; }
+
+  :root {
+    --ink: #1A1A1A; --ink-2: #2C2724;
+    --paper: #FAF6F0; --paper-2: #F2EBDE; --paper-3: #ECE2D0;
+    --bronze: #B08D57; --bronze-d: #8C6D3F; --bronze-l: #C9AB7C;
+    --jade: #5B8C7E; --jade-d: #436B5F;
+    --mute: #8B847B; --line: #D9D2C4;
+    --serif-en: "Cormorant Garamond", "Georgia", serif;
+    --serif-cn: "Noto Serif SC", "Songti SC", "STSong", serif;
+    --sans-en:  "Inter", -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    --sans-cn:  "Noto Sans SC", "PingFang SC", "Heiti SC", sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --w-max: 1180px; --pad-x: clamp(20px, 5vw, 64px);
+    --shadow-soft: 0 12px 30px -10px rgba(0, 0, 0, 0.12);
+    --shadow-medium: 0 22px 50px -18px rgba(0, 0, 0, 0.18);
+  }
+
+  body {
+    font-family: var(--sans-en), var(--sans-cn);
+    color: var(--ink); background: var(--paper);
+    line-height: 1.6; font-weight: 400; overflow-x: hidden;
+  }
+  body::before {
+    content: ''; position: fixed; inset: 0; pointer-events: none; opacity: 0.05; z-index: 1;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  }
+
+  .progress { position: fixed; top: 0; left: 0; height: 2px; background: linear-gradient(90deg, var(--bronze), var(--bronze-l)); width: 0%; z-index: 100; transition: width 0.1s linear; }
+
+  /* ============ Top nav ============ */
+  .topnav { position: sticky; top: 0; z-index: 50; background: rgba(250,246,240,0.85); backdrop-filter: blur(12px) saturate(120%); -webkit-backdrop-filter: blur(12px) saturate(120%); border-bottom: 1px solid var(--line); }
+  .topnav-inner { max-width: var(--w-max); margin: 0 auto; padding: 14px var(--pad-x); display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+  .brand { font-family: var(--serif-cn); font-weight: 800; font-size: 18px; letter-spacing: 0.05em; display: flex; align-items: center; gap: 10px; color: var(--ink); text-decoration: none; }
+  .brand .mark-icon { width: 22px; height: 22px; display: inline-block; color: var(--bronze); }
+  .brand .accent { color: var(--bronze); }
+  .nav-links { display: flex; gap: clamp(12px, 2vw, 24px); font-size: 13px; list-style: none; }
+  .nav-links a { color: var(--ink); text-decoration: none; opacity: 0.72; transition: opacity 0.2s, color 0.2s; }
+  .nav-links a:hover { opacity: 1; color: var(--bronze-d); }
+  .nav-links a.home-link { color: var(--bronze-d); font-weight: 500; opacity: 1; }
+  @media (max-width: 760px) { .nav-links li.opt { display: none; } }
+
+  /* ============ Layout ============ */
+  section { padding: clamp(40px, 6vw, 80px) var(--pad-x); position: relative; z-index: 2; }
+  .container { max-width: var(--w-max); margin: 0 auto; }
+  .eyebrow { font-family: var(--sans-en); font-size: 12px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--bronze-d); margin-bottom: 18px; }
+
+  /* ============ Hero ============ */
+  .hero { padding-top: clamp(48px, 7vw, 96px); padding-bottom: clamp(28px, 4vw, 56px); }
+  .hero h1 { font-family: var(--serif-cn); font-weight: 800; font-size: clamp(30px, 5vw, 50px); line-height: 1.2; margin-bottom: 12px; }
+  .hero h1 .en { display: block; font-family: var(--serif-en); font-weight: 500; font-style: italic; font-size: 0.5em; color: var(--mute); margin-top: 8px; letter-spacing: 0.01em; }
+  .hero .lead { font-size: clamp(15px, 1.6vw, 17px); color: #444; max-width: 740px; margin-bottom: 8px; }
+  .hero .lead.cn { color: var(--mute); font-size: 14.5px; max-width: 740px; }
+  .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 26px; }
+  .pill-link { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; text-decoration: none; padding: 10px 18px; border-radius: 100px; border: 1px solid var(--bronze); color: var(--bronze-d); transition: background 0.2s, color 0.2s, transform 0.2s; }
+  .pill-link:hover { background: var(--bronze); color: var(--paper); transform: translateY(-2px); }
+  .pill-link.solid { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .pill-link.solid:hover { background: var(--bronze-d); border-color: var(--bronze-d); }
+
+  /* ============ Prereq / loop note ============ */
+  .note-card { background: var(--paper-2); border-left: 3px solid var(--jade); border-radius: 0 12px 12px 0; padding: 20px 24px; margin-top: 30px; }
+  .note-card h3 { font-family: var(--serif-cn); font-weight: 700; font-size: 16px; color: var(--jade-d); margin-bottom: 10px; }
+  .note-card h3 .en { font-family: var(--serif-en); font-style: italic; font-weight: 400; font-size: 13px; color: var(--mute); margin-left: 8px; }
+  .note-card ul { list-style: none; }
+  .note-card li { position: relative; padding: 7px 0 7px 24px; font-size: 14px; color: #3c3c3c; line-height: 1.55; border-bottom: 1px dashed var(--line); }
+  .note-card li:last-child { border-bottom: none; }
+  .note-card li::before { content: '✦'; position: absolute; left: 0; top: 7px; color: var(--bronze); font-size: 12px; }
+  .note-card li b { color: var(--bronze-d); font-family: var(--serif-cn); }
+  .note-card li .en { color: var(--mute); }
+  .note-card code { font-family: var(--mono); font-size: 12.5px; color: var(--bronze-d); background: var(--paper-3); padding: 1px 6px; border-radius: 4px; }
+  .loop-line { margin-top: 14px; font-family: var(--serif-en); font-style: italic; font-size: 15px; color: var(--ink); }
+  .loop-line b { color: var(--bronze-d); font-style: normal; font-family: var(--sans-cn); font-weight: 600; }
+
+  /* ============ Steps ============ */
+  #steps { background: var(--paper-2); }
+  .ladder-title { font-family: var(--serif-cn); font-weight: 800; font-size: clamp(22px, 3.2vw, 30px); margin-bottom: 6px; }
+  .ladder-title .en { display: block; font-family: var(--serif-en); font-style: italic; font-weight: 500; font-size: 0.52em; color: var(--mute); margin-top: 6px; }
+  .ladder-sub { font-size: 14.5px; color: #555; max-width: 720px; margin: 8px 0 36px; }
+
+  .step-list { display: grid; gap: 22px; counter-reset: step; }
+  .step { position: relative; background: var(--paper); border: 1px solid var(--line); border-radius: 16px; padding: clamp(22px, 3vw, 30px); transition: box-shadow 0.25s, transform 0.25s; }
+  .step:hover { box-shadow: var(--shadow-soft); transform: translateY(-2px); }
+  .step-top { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 6px; }
+  .step-no { flex-shrink: 0; width: 40px; height: 40px; border-radius: 50%; background: var(--ink); color: var(--paper); font-family: var(--serif-en); font-style: italic; font-size: 17px; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-soft); }
+  .step-h h3 { font-family: var(--serif-cn); font-weight: 700; font-size: 19px; line-height: 1.3; }
+  .step-h h3 .en { display: block; font-family: var(--serif-en); font-style: italic; font-weight: 500; font-size: 0.74em; color: var(--mute); margin-top: 2px; }
+  .step .goal { font-size: 14.5px; color: #3c3c3c; line-height: 1.6; margin: 12px 0 4px; }
+  .step .goal b { font-family: var(--serif-cn); color: var(--bronze-d); }
+  .step .goal .en { display: block; color: var(--mute); font-size: 13.5px; margin-top: 2px; }
+
+  /* prompt box (matches courses.html) */
+  .prompt-box { position: relative; background: var(--ink-2); color: #EDE6D8; border-radius: 10px; padding: 16px 18px 18px 20px; margin: 16px 0 14px; border-left: 3px solid var(--bronze); overflow: hidden; }
+  .prompt-box .plabel { display: block; font-family: var(--sans-en); font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--bronze-l); margin-bottom: 10px; padding-right: 84px; }
+  .prompt-box pre { font-family: var(--mono); font-size: 12.5px; line-height: 1.62; white-space: pre-wrap; word-break: break-word; color: #EDE6D8; }
+  .copy-btn { position: absolute; top: 12px; right: 12px; font-family: var(--sans-en); font-size: 11px; letter-spacing: 0.05em; color: var(--bronze-l); background: rgba(255,255,255,0.06); border: 1px solid rgba(201,171,124,0.4); border-radius: 100px; padding: 5px 12px; cursor: pointer; transition: background 0.2s, color 0.2s; }
+  .copy-btn:hover { background: var(--bronze); color: var(--ink); border-color: var(--bronze); }
+
+  /* verify + under-the-hood */
+  .step-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 6px; }
+  @media (max-width: 680px) { .step-grid { grid-template-columns: 1fr; } }
+  .cell .h { font-family: var(--sans-en); font-size: 10.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--bronze-d); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .verify ul { list-style: none; }
+  .verify li { position: relative; padding: 5px 0 5px 22px; font-size: 13.5px; color: #3c3c3c; line-height: 1.5; }
+  .verify li::before { content: '✓'; position: absolute; left: 0; top: 5px; color: var(--jade-d); font-weight: 700; }
+  .verify li .en { display: block; color: var(--mute); font-size: 12.5px; }
+  .under { background: var(--paper-2); border-radius: 10px; padding: 12px 16px; font-size: 13px; color: #4a4a4a; line-height: 1.55; }
+  .under b { font-family: var(--serif-cn); color: var(--bronze-d); }
+  .under .en { display: block; color: var(--mute); font-size: 12px; margin-top: 3px; }
+  .under code { font-family: var(--mono); font-size: 11.5px; color: var(--bronze-d); }
+
+  /* ============ Closing ============ */
+  #closing { background: var(--ink); color: var(--paper); }
+  #closing .eyebrow { color: var(--bronze-l); }
+  #closing h2 { font-family: var(--serif-cn); font-weight: 800; font-size: clamp(24px, 3.4vw, 34px); margin-bottom: 8px; }
+  #closing h2 .en { display: block; font-family: var(--serif-en); font-style: italic; font-weight: 500; font-size: 0.5em; color: rgba(250,246,240,0.6); margin-top: 6px; }
+  #closing p { color: rgba(250,246,240,0.82); font-size: 15px; max-width: 720px; line-height: 1.75; margin-bottom: 8px; }
+  #closing p.cn { color: rgba(250,246,240,0.55); font-size: 14px; }
+  #closing .hero-actions { margin-top: 28px; }
+  #closing .pill-link { border-color: var(--bronze-l); color: var(--bronze-l); }
+  #closing .pill-link:hover { background: var(--bronze-l); color: var(--ink); }
+  #closing .pill-link.solid { background: var(--paper); color: var(--ink); border-color: var(--paper); }
+  #closing .pill-link.solid:hover { background: var(--bronze-l); border-color: var(--bronze-l); }
+
+  /* ============ Footer ============ */
+  footer { background: var(--ink); color: var(--paper); padding: 48px var(--pad-x) 36px; position: relative; z-index: 2; border-top: 1px solid rgba(250,246,240,0.1); }
+  .foot-inner { max-width: var(--w-max); margin: 0 auto; display: flex; flex-wrap: wrap; gap: 24px; justify-content: space-between; align-items: baseline; }
+  .foot-brand { font-family: var(--serif-cn); font-weight: 800; font-size: 18px; color: var(--paper); letter-spacing: 0.08em; }
+  .foot-brand .accent { color: var(--bronze); }
+  footer a { color: rgba(250,246,240,0.72); text-decoration: none; transition: color 0.2s; font-size: 13px; }
+  footer a:hover { color: var(--bronze-l); }
+  .foot-bottom { max-width: var(--w-max); margin: 28px auto 0; padding-top: 20px; border-top: 1px solid rgba(250,246,240,0.15); font-size: 12px; color: rgba(250,246,240,0.45); text-align: center; letter-spacing: 0.05em; }
+
+  /* ============ Reveal / motion ============ */
+  .reveal { opacity: 0; transform: translateY(22px); transition: opacity 0.7s ease, transform 0.7s ease; }
+  .reveal.in { opacity: 1; transform: translateY(0); }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } .reveal { opacity: 1; transform: none; } }
+  @media print { .topnav, .progress, footer { display: none; } body { background: white; } body::before { display: none; } .step, .note-card { page-break-inside: avoid; } .prompt-box { background: #f4efe6; color: #1A1A1A; } .prompt-box pre, .prompt-box .plabel { color: #1A1A1A; } .copy-btn { display: none; } }
+
+/* 中国传媒大学国际传媒教育学院教学版。 */
+.cuc-context-bar {
+  box-sizing: border-box; min-height: 44px; padding: 6px clamp(12px, 3vw, 28px);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  background: #fff; color: #32135c; border-bottom: 1px solid #e7e0ee;
+  font: 500 12px/1.35 system-ui, -apple-system, "Segoe UI", sans-serif;
+  letter-spacing: 0; text-align: left;
+}
+.cuc-context-bar .cuc-context-identity { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.cuc-context-bar img { display: block; width: auto; height: 26px; max-width: none; flex: none; }
+.cuc-context-bar .cuc-context-label { display: block; min-width: 0; }
+.cuc-context-bar a { color: #32135c; flex: none; text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; }
+.cuc-context-bar a:hover { color: #60389c; }
+.cuc-context-bar a:focus-visible { outline: 2px solid #60389c; outline-offset: 3px; }
+@media (max-width: 620px) {
+  .cuc-context-bar { flex-wrap: wrap; gap: 4px 8px; font-size: 10px; min-height: 52px; }
+  .cuc-context-bar .cuc-context-identity { flex: 1 1 100%; gap: 8px; }
+  .cuc-context-bar img { height: 18px; }
+  .cuc-context-bar a { font-size: 10px; margin-left: auto; }
+}
+
+
+.cuc-adaptation { box-sizing: border-box; max-width: 1180px; margin: 16px auto; padding: 11px 16px; border-left: 3px solid #51247a; background: #f4eef8; color: #35264a; font: 13px/1.65 system-ui, -apple-system, "Segoe UI", sans-serif; }
+.cuc-adaptation strong { color: #32135c; }
+.cuc-adaptation code { overflow-wrap: anywhere; }
+@media (max-width: 1220px) { .cuc-adaptation { margin-left: 18px; margin-right: 18px; } }
+
+/* 中文教学版标识与文字排版。 */
+body { font-family: var(--sans-cn), var(--sans-en); }
+.cuc-context-bar .cuc-logo { height: 44px; width: auto; max-width: min(55vw, 330px); object-fit: contain; }
+.results-page .school-lockup .cuc-logo { height: 46px; width: auto; max-width: min(45vw, 300px); object-fit: contain; }
+.results-page .foot-brand { font-family: var(--serif-cn); font-style: normal; font-size: clamp(32px, 3.4vw, 48px); letter-spacing: 0; }
+@media (max-width: 760px) {
+  .cuc-context-bar .cuc-context-identity { flex-wrap: wrap; }
+  .cuc-context-bar .cuc-logo { height: 34px; max-width: 250px; }
+  .results-page .school-lockup { flex-wrap: wrap; gap: 9px; }
+  .results-page .school-lockup .cuc-logo { height: 38px; max-width: 250px; }
+  .results-page .school-course { padding-left: 0; border-left: 0; white-space: normal; }
+  .results-page .lesson-nav { flex-wrap: wrap; gap: 12px 20px; }
+}
+</style>
+</head>
+<body>
+<div class="cuc-context-bar">
+<div class="cuc-context-identity">
+<img alt="中国传媒大学国际传媒教育学院标识" class="cuc-logo" height="475" src="assets/cuc-logo.jpg" width="2480"/>
+<span class="cuc-context-label">中国传媒大学国际传媒教育学院 · 音乐可视化课程</span>
+</div>
+<a aria-label="返回音乐可视化课程首页" href="index.html">课程首页 ↗</a>
+</div>
+<div class="progress" id="progress"></div>
+<!-- =================== NAV =================== -->
+<nav class="topnav">
+<div class="topnav-inner">
+<a class="brand" href="index.html">
+<svg aria-hidden="true" class="mark-icon" fill="currentColor" viewbox="0 0 64 64">
+<path d="M32 12 C34 24, 40 30, 52 32 C40 34, 34 40, 32 52 C30 40, 24 34, 12 32 C24 30, 30 24, 32 12 Z"></path>
+</svg>
+      灵境 · <span class="accent">工坊</span>
+</a>
+<ul class="nav-links">
+<li class="opt"><a href="courses.html#visual">第 3 天课程</a></li>
+<li><a href="visualizers.html">示例</a></li>
+<li><a href="ink-wash-ring-original.html?v=original-1" rel="noopener" target="_blank">运行此例</a></li>
+<li><a class="home-link" href="courses.html">← 课程</a></li>
+</ul>
+</div>
+</nav>
+<aside aria-label="教学版使用提示" class="cuc-adaptation"><strong>桌面教室提示：</strong>本教学版面向桌面浏览器。请使用自己创作或获授权的音频。Google AI Studio Build 也可能生成多文件 React 应用；如果如此，请保留能正常运行的项目结构。</aside>
+<!-- =================== HERO =================== -->
+<section class="hero">
+<div class="container">
+<div class="eyebrow reveal">案例 A · 深入拆解</div>
+<h1 class="reveal">一步步做出「水墨圆环」</h1>
+
+<p class="lead reveal">这是案例 A——那张随声音作画的水墨页面——的完整拆解。我们从一张空白宣纸开始，用 <b>11 步</b>把它做成成片，而每一步都只是你粘进 Gemini 的一句大白话。你不写代码；你描述、你运行、你检查，然后说下一句。</p>
+<div class="hero-actions reveal">
+<a class="pill-link solid" href="ink-wash-ring-original.html?v=original-1" rel="noopener" target="_blank">▶ 先玩成品</a>
+<a class="pill-link" href="#steps">↓ 开始 11 步</a>
+<a class="pill-link" href="build-sumi-e-results.html#steps">看 11 步结果图 →</a>
+<a class="pill-link" href="courses.html#visual">第 3 天完整课程</a>
+</div>
+<div class="note-card reveal">
+<h3>动手前 · 三样东西</h3>
+<ul>
+<li><b>Google AI Studio Build</b> — 登录后选择 Build 和网页应用，逐条粘贴下方提示词。</li>
+<li><b>用 localhost 打开</b> — 麦克风、摄像头在 <code>file://</code> 会被浏览器拦掉；课前用 <code>python3 -m http.server</code> 起一个本地服务器，再开 <code>localhost</code>。</li>
+<li><b>一段音乐（可选）</b> — 准备自己创作或获授权的音频；没有也行，第 11 步提供点击播放后才启动的内置合成器。</li>
+</ul>
+<p class="loop-line">每一步都跑同一个循环：<b>描述 → 预览 → 验证 → 迭代</b>。每次跑通，先存一份再往下改——「上一个能跑的版本」是你最好的安全网。</p>
+
+</div>
+</div>
+</section>
+<!-- =================== STEPS =================== -->
+<section id="steps">
+<div class="container">
+<div class="ladder-title reveal">11 步阶梯</div>
+<p class="ladder-sub reveal">第 1 步搭好骨架，第 2–11 步都在<b>同一个对话</b>里继续说，每句加一样新能力。<a href="build-sumi-e-results.html#steps" style="color:#51247a;font-weight:600;text-underline-offset:3px;">看步骤与结果图 →</a></p>
+<div class="step-list">
+<!-- STEP 1 -->
+<div class="step reveal">
+<div class="step-top">
+<div class="step-no">1</div>
+<div class="step-h"><h3>宣纸与第一道墨环</h3></div>
+</div>
+<p class="goal"><b>目标</b> — 一张暖色宣纸，正中一道手绘感的墨环。先证明「一句话变出一个页面」。</p>
+<div class="prompt-box">
+<span class="plabel">提示词 · 复制粘贴给 Gemini</span>
+<button class="copy-btn" type="button">复制</button>
+<pre>制作一个自包含的 HTML 文件：使用一个全屏 canvas 画布和原生 JavaScript，不引入任何库。
+将背景填为暖米白色宣纸（#FAF6F0）。在画布正中央画一道柔和的黑色水墨圆环：
+边缘略微不规则、轻轻起伏，像毛笔一笔画出的环，而不是完美的几何圆。
+四周保留大量安静的留白，整体优雅、简洁。</pre>
+</div>
+<div class="step-grid">
+<div class="cell verify"><div class="h">✓ 验证</div><ul>
+<li>正中一道墨环，边缘像毛笔画的、不是完美圆。</li>
+<li>底色是暖米白，不是纯白。</li>
+</ul></div>
+<div class="cell"><div class="h">底层揭秘</div><div class="under"><b>沿圆周加一点正弦扰动</b>，半径不再恒定，边缘就「毛」了。圆周可用约 100 段线段绘制。</div></div>
+</div>
+</div>
+<!-- STEP 2 -->
+<div class="step reveal">
+<div class="step-top">
+<div class="step-no">2</div>
+<div class="step-h"><h3>让它呼吸 + 墨痕拖尾</h3></div>
+</div>
+<p class="goal"><b>目标</b> — 墨环缓缓起伏；画面不每帧清空，让运动留下渐渐渗进纸里的拖尾。</p>
+<div class="prompt-box">
+<span class="plabel">提示词 · 同一个对话，继续说</span>
+<button class="copy-btn" type="button">复制</button>
+<pre>在同一个文件中为画面添加动画。让墨环持续缓慢地呼吸：半径和边缘轻轻起伏、脉动。
+关键是不要在每一帧彻底清空画布，而是在每一帧用接近透明的宣纸底色矩形
+覆盖整个画面（透明度约 8%），让运动的墨迹留下柔和、细腻的拖尾，逐渐淡入纸面。
+如果用户开启了 prefers-reduced-motion（减弱动态效果），就大幅减弱运动。</pre>
+</div>
+<div class="step-grid">
+<div class="cell verify"><div class="h">✓ 验证</div><ul>
+<li>墨环慢慢起伏，像在呼吸。</li>
+<li>运动留下会淡去的墨痕，而不是干净清空。</li>
+</ul></div>
+<div class="cell"><div class="h">底层揭秘</div><div class="under"><b>「拖尾」= 每帧铺一层 8% 的纸色</b>，旧画面通过 fillRect 被慢慢盖住而非抹掉。</div></div>
+</div>
+</div>
+<!-- STEP 3 -->
+<div class="step reveal">
+<div class="step-top">
+<div class="step-no">3</div>
+<div class="step-h"><h3>放进音乐</h3></div>
+</div>
+<p class="goal"><b>目标</b> — 一个播放/暂停键 + 选本地 mp3，用 Web Audio 读出声音的频率。安全键从第一刻就在。</p>
+<div class="prompt-box">
+<span class="plabel">提示词 · 同一个对话，继续说</span>
+<button class="copy-btn" type="button">复制</button>
+<pre>加入音频。在页面底部放置小巧、雅致的“播放／暂停”按钮和“选择本地音频文件”控件。
+把选中的 MP3 文件载入 audio 元素，并用 Web Audio API 读取声音：
+创建一个 AnalyserNode，将 fftSize 设为 256，以便每一帧读取声音的频率数据。
+始终显示“暂停”和“静音”控件，不要自动播放或突然大声播放。</pre>
+</div>
+<div class="step-grid">
+<div class="cell verify"><div class="h">✓ 验证</div><ul>
+<li>选一段 mp3，能播；暂停键真的能停。</li>
+<li>暂停键真的能停；并按提示词要求保留「静音」键。</li>
+</ul></div>
+<div class="cell"><div class="h">底层揭秘</div><div class="under"><b>AnalyserNode 是「听诊器」</b>,<code>fftSize 256</code> 把声音切成 128 个频率格子供每帧读取。</div></div>
+</div>
+</div>
+<!-- STEP 4 -->
+<div class="step reveal">
+<div class="step-top">
+<div class="step-no">4</div>
+<div class="step-h"><h3>随低音起伏</h3></div>
+</div>
+<p class="goal"><b>目标</b> — 把墨环接到声音上：低音越重，环越大越粗；安静时收住。这是整个页面的「核心耦合」。</p>
+<div class="prompt-box">
+<span class="plabel">提示词 · 同一个对话，继续说</span>
+<button class="copy-btn" type="button">复制</button>
+<pre>现在让墨环随音乐变化。每一帧从分析器读取低频（低音）能量，
+只使用最低的几个频率格子，并在时间上进行平滑处理。
+用这个低音值控制墨环的大小和线条粗细：低音强时，墨环膨胀、变粗；
+安静的段落中，墨环收敛、平静下来。让运动自然流畅，不要突跳。</pre>
+</div>
+<div class="step-grid">
+<div class="cell verify"><div class="h">✓ 验证</div><ul>
+<li>低音一来，环就胀大变粗。</li>
+<li>安静段落它平稳下来，不抖。</li>
+</ul></div>
+<div class="cell"><div class="h">底层揭秘</div><div class="under"><b>只取最低约 3 个频格当「低音」</b>，再做平滑（lerp 0.15）避免突跳。</div></div>
+</div>
+</div>
+<!-- STEP 5 -->
+<div class="step reveal">
+<div class="step-top">
+<div class="step-no">5</div>
+<div class="step-h"><h3>重拍泼墨</h3></div>
+</div>
+<p class="goal"><b>目标</b> — 检测强低音（自适应阈值，会自调），每一拍泼出一团墨点：飞出、变慢、扩散、渗进纸里。</p>
+<div class="prompt-box">
+<span class="plabel">提示词 · 同一个对话，继续说</span>
+<button class="copy-btn" type="button">复制</button>
+<pre>加入随重拍泼墨的效果。用自适应阈值检测强低音：每次触发后提高阈值，
+再让它慢慢衰减，使它自动适应不同音乐，而不是使用固定数值。
+每次检测到强拍，就从中心向外喷出约 30 个墨滴。墨滴飞出后受摩擦影响逐渐减速，
+随着速度降低而扩散变大，并在约一秒内干燥、淡入纸面。
+大部分墨滴为黑色，少量为青色或铜色，偶尔出现淡金色。
+加入持续几帧的短暂冷却，防止每一帧都连续触发。</pre>
+</div>
+<div class="step-grid">
+<div class="cell verify"><div class="h">✓ 验证</div><ul>
+<li>强拍泼墨，墨点扩散后干进纸里。</li>
+<li>安静处不乱泼；绝不频闪。</li>
+</ul></div>
+<div class="cell"><div class="h">底层揭秘</div><div class="under"><b>自适应阈值 + 冷却帧</b>，让它跟着歌自调、又不会狂泼；墨点变慢时才「长大变淡」=渗墨。</div></div>
+</div>
+</div>
+<!-- STEP 6 -->
+<div class="step reveal">
+<div class="step-top">
+<div class="step-no">6</div>
+<div class="step-h"><h3>三层墨环 + 鼠标视差</h3></div>
+</div>
+<p class="goal"><b>目标</b> — 把一道环变三层（外淡、中实、内锐），跟着鼠标以不同速度位移，做出景深。</p>
+<div class="prompt-box">
+<span class="plabel">提示词 · 同一个对话，继续说</span>
+<button class="copy-btn" type="button">复制</button>
+<pre>增强画面的纵深感。使用三道大小和透明度不同的同心水墨圆环：
+外圈大而淡，像晕染；中圈笔触厚实；内圈小而锐利，作为点睛。
+让三道环跟随鼠标，并使用不同的位移幅度：内圈移动最多，外圈最少，形成视差景深。
+加入约三分之一秒的柔和迟滞，让圆环平滑地漂向鼠标位置，不要瞬间跳过去。</pre>
+</div>
+<div class="step-grid">
+<div class="cell verify"><div class="h">✓ 验证</div><ul>
+<li>看得出三层环，深浅不同。</li>
+<li>移动鼠标，三层以不同速度滑动，有迟滞。</li>
+</ul></div>
+<div class="cell"><div class="h">底层揭秘</div><div class="under"><b>视差 = 同一中心、不同位移倍数</b>（内层乘得最大）；迟滞用每帧 lerp 实现。</div></div>
+</div>
+</div>
+<!-- STEP 7 -->
+<div class="step reveal">
+<div class="step-top">
+<div class="step-no">7</div>
+<div class="step-h"><h3>冲击波扭曲</h3></div>
+</div>
+<p class="goal"><b>目标</b> — 每个强拍（和点击）从中心放出一圈冲击波，所过之处把画面轻轻推开、扭曲，再淡去。</p>
+<div class="prompt-box">
+<span class="plabel">提示词 · 同一个对话，继续说</span>
+<button class="copy-btn" type="button">复制</button>
+<pre>加入冲击波。每逢强拍，以及每次点击时，都从中心发出一圈向外扩张的波，
+让它所经过的画面发生位移和扭曲：波前到达某个点时，轻轻将该点向外推开，
+再让冲击波随着扩张逐渐淡去。保持扭曲克制、优雅，像涟漪穿过湿润的墨迹。</pre>
+</div>
+<div class="step-grid">
+<div class="cell verify"><div class="h">✓ 验证</div><ul>
+<li>强拍/点击送出一圈涟漪，墨随之弯曲。</li>
+<li>扭曲克制、优雅，不刺眼。</li>
+</ul></div>
+<div class="cell"><div class="h">底层揭秘</div><div class="under"><b>所有要画的点都先过一道「位移函数」</b>：落在波前附近就被推开，于是整幅画被同一只手扭。</div></div>
+</div>
+</div>
+<!-- STEP 8 -->
+<div class="step reveal">
+<div class="step-top">
+<div class="step-no">8</div>
+<div class="step-h"><h3>拖动作画</h3></div>
+</div>
+<p class="goal"><b>目标</b> — 让人能直接在宣纸上按住拖动，留下自己的墨笔触，慢慢渗开淡去。</p>
+<div class="prompt-box">
+<span class="plabel">提示词 · 同一个对话，继续说</span>
+<button class="copy-btn" type="button">复制</button>
+<pre>让我能够作画。用鼠标在纸面按住并拖动时，沿移动路径留下柔和的水墨笔触点，
+让它们轻微起伏，缓缓渗入纸面并淡去，像湿毛笔划过宣纸。
+这些笔触使用当前的墨色。</pre>
+</div>
+<div class="step-grid">
+<div class="cell verify"><div class="h">✓ 验证</div><ul>
+<li>按住拖动，留下会渗开淡去的笔触。</li>
+</ul></div>
+<div class="cell"><div class="h">底层揭秘</div><div class="under"><b>每个落点存进一个数组</b>，各自带透明度逐帧衰减 + 抖动 → 自然的「湿笔」。</div></div>
+</div>
+</div>
+<!-- STEP 9 -->
+<div class="step reveal">
+<div class="step-top">
+<div class="step-no">9</div>
+<div class="step-h"><h3>滚轮调色 + 中轴线</h3></div>
+</div>
+<p class="goal"><b>目标</b> — 滚轮在「青」与「铜」之间调色，整幅画一起变；再添一条贯穿上下的淡淡中轴线——画面的脊。</p>
+<div class="prompt-box">
+<span class="plabel">提示词 · 同一个对话，继续说</span>
+<button class="copy-btn" type="button">复制</button>
+<pre>加入鼠标滚轮调色。向上滚动时，让整幅画的色调向暖铜色变化；
+向下滚动时，让色调向冷青绿色变化。
+用一个 tone 值在冷青色与暖铜色之间插值，并用它统一控制墨环、泼墨、
+笔触，以及页面正中央一条淡淡的竖直中轴线。中轴线是整件作品的脊梁。</pre>
+</div>
+<div class="step-grid">
+<div class="cell verify"><div class="h">✓ 验证</div><ul>
+<li>上滚转暖（铜），下滚转冷（青），整体同步。</li>
+<li>中间多了一条淡淡的竖轴。</li>
+</ul></div>
+<div class="cell"><div class="h">底层揭秘</div><div class="under"><b>一个 0→1 的 tone 值</b>在青（91,140,126）与铜（176,141,87）之间插值，一处改、处处变。</div></div>
+</div>
+</div>
+<!-- STEP 10 -->
+<div class="step reveal">
+<div class="step-top">
+<div class="step-no">10</div>
+<div class="step-h"><h3>用你的声音 · 麦克风</h3></div>
+</div>
+<p class="goal"><b>目标</b> — 加一个麦克风开关：你越大声，中心那团光芯越亮（颜色随当前青↔铜色调）；拍一下手（音量骤起）就炸出一团墨。</p>
+<div class="prompt-box">
+<span class="plabel">提示词 · 同一个对话，继续说</span>
+<button class="copy-btn" type="button">复制</button>
+<pre>加入一个标为“麦克风”的开关。开启时请求权限，并用独立的分析器读取麦克风。
+用我的音量控制画面中央发光的金色光芯：说话或唱歌越响，光芯就越明亮、越大。
+检测拍手，也就是音量突然升高，并在拍手时触发一次泼墨爆发。
+提醒：麦克风只能在 localhost 或 HTTPS 环境下工作，不能直接在 file:// 页面中使用。</pre>
+</div>
+<p class="goal" style="font-size:13px;color:var(--mute);">AI Studio Build 预览设备输入时，还要在 <code>metadata.json</code> 的 <code>requestFramePermissions</code> 中加入 <code>microphone</code>，并确认预览权限提示。</p>
+<div class="step-grid">
+<div class="cell verify"><div class="h">✓ 验证</div><ul>
+<li>说话/唱，中心光芯随音量发光长大。</li>
+<li>拍手，炸出一团墨。在 localhost 下测。</li>
+</ul></div>
+<div class="cell"><div class="h">底层揭秘</div><div class="under"><b>「拍手」= 音量的突然跳变</b>（这一帧比上一帧猛涨且够响）就触发爆发，而不是看绝对音量。</div></div>
+</div>
+</div>
+<!-- STEP 11 -->
+<div class="step reveal">
+<div class="step-top">
+<div class="step-no">11</div>
+<div class="step-h"><h3>收尾：摄像头 · 内置合成器 · 安全控件</h3></div>
+</div>
+<p class="goal"><b>目标</b> — 最后一层。让身体参与互动；没有音频文件时点击播放也能启动合成器；并把「计分的安全规则」一次性加进去。</p>
+<p class="goal" style="font-size:13px;color:var(--mute);"><b style="color:var(--bronze-d);">课堂提醒</b> — 运行成品展示了交互方向；在你自己的作品中，静音、减弱动效、温和闪光与暂停仍是需要逐项实现和验证的<b style="color:var(--bronze-d);">计分</b>要求。</p>
+<div class="prompt-box">
+<span class="plabel">提示词 · 同一个对话，继续说（这条最长，可分两次发）</span>
+<button class="copy-btn" type="button">复制</button>
+<pre>最后，在同一个文件里加入三项内容。
+（1）加入“摄像头”开关：获得权限后，将每一帧摄像头画面与上一帧比较，
+    找到发生运动的位置，再用运动的水平位置改变墨环的视差。
+    当人向左右倾身或挥手时，墨迹随身体一起漂移。
+（2）没有载入音频文件时，允许用户点击“播放”，启动内置的舒缓环境音乐合成器，
+    速度为每分钟 50 拍：柔和的低音脉冲，偶尔加入延长的五声音阶音符。
+    页面打开时不要自动播放音频。
+（3）安全要求也计入评分：所有闪光保持温和，每秒不超过约三次，
+    绝不使用全屏白色频闪；开启 prefers-reduced-motion（减弱动态效果）时，
+    禁用画面抖动；“暂停”和“静音”控件始终可见。</pre>
+</div>
+<p class="goal" style="font-size:13px;color:var(--mute);">若在 AI Studio Build 预览摄像头，还要在 <code>metadata.json</code> 的 <code>requestFramePermissions</code> 中加入 <code>camera</code>，并确认预览权限提示。</p>
+<div class="step-grid">
+<div class="cell verify"><div class="h">✓ 验证</div><ul>
+<li>对着摄像头左右动，墨随之漂移。</li>
+<li>不放文件时点击播放也能发声；闪光温和；开了「减弱动效」后抖动应停；暂停/静音键都在。</li>
+</ul></div>
+<div class="cell"><div class="h">底层揭秘</div><div class="under"><b>摄像头不做人脸识别</b>，只把「这一帧和上一帧哪里不一样」的重心算出来当方向——便宜、稳、够用。</div></div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- =================== CLOSING =================== -->
+<section id="closing">
+<div class="container">
+<div class="eyebrow reveal">你做出了案例 A</div>
+<h2 class="reveal">就这样，一句一句，你做出了整张「水墨圆环」</h2>
+
+<p class="reveal">十一句大白话，把你从一张空白宣纸带到一张会听音乐、会自己作画、随拍扭曲、接住你的声音/身体/鼠标动作的页面——而且打包成一个文件。你一行代码都没写。你描述、你检查，然后说下一句。</p>
+<div class="hero-actions reveal">
+<a class="pill-link solid" href="courses.html#visual">下一步：发布它（练习 5）</a>
+<a class="pill-link" href="ink-wash-ring-original.html?v=original-1" rel="noopener" target="_blank">▶ 对照成品</a>
+<a class="pill-link" href="visualizers.html">看其他示例</a>
+</div>
+<p class="reveal" style="margin-top:22px; font-size:13px;">想换成自己的曲子？在第 3 步选择一段自己创作或获授权的录音即可。</p>
+</div>
+</section>
+<!-- =================== FOOTER =================== -->
+<footer>
+<div class="foot-inner">
+<div class="foot-brand">灵境 · <span class="accent">工坊</span></div>
+<div style="display:flex; gap:20px; flex-wrap:wrap;">
+<a href="index.html">总览</a>
+<a href="courses.html#visual">第 3 天课程</a>
+<a href="visualizers.html">示例</a>
+<a href="ink-wash-ring-original.html?v=original-1" rel="noopener" target="_blank">运行此例</a>
+</div>
+</div>
+<div class="foot-bottom">中国传媒大学国际传媒教育学院 · 2026 · 音乐可视化 · 案例 A</div>
+</footer>
+<script>
+  // progress bar
+  const progress = document.getElementById('progress');
+  function onScroll() {
+    const h = document.documentElement;
+    const scrolled = (h.scrollTop) / (h.scrollHeight - h.clientHeight);
+    progress.style.width = (scrolled * 100) + '%';
+  }
+  window.addEventListener('scroll', onScroll, { passive: true });
+
+  // reveal on scroll
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+  }, { threshold: 0.12 });
+  document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+  // copy-to-clipboard on prompt boxes
+  document.querySelectorAll('.copy-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const pre = btn.closest('.prompt-box').querySelector('pre');
+      const text = pre.innerText;
+      const done = () => { const old = btn.textContent; btn.textContent = '已复制 ✓'; setTimeout(() => { btn.textContent = old; }, 1500); };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(() => fallback(text, done));
+      } else { fallback(text, done); }
+    });
+  });
+  function fallback(text, done) {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch (e) {}
+    document.body.removeChild(ta);
+  }
+</script>
+</body>
+</html>

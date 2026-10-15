@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>古韵青铜｜双层编钟交互示例</title>
+    <meta name="description" content="保留原案例的双层青铜编钟示意钟架与合成钟声，可点击或通过键盘逐钟演奏。中国传媒大学国际传媒教育学院编钟交互课程。">
+    
+<!-- 谷歌 3D Model Viewer 模块 -->
+    <script type="module" src="assets/vendor/model-viewer.min.js"></script>
+
+    <style>
+        :root {
+            --bg-cream: #FAF6F0;       /* 宣纸暖白 */
+            --ink-black: #1A1A1A;      /* 徽墨深黑 */
+            --bronze-gold: #B08D57;    /* 宫廷古铜 */
+            --jade-green: #5B8C7E;     /* 温润翡翠 */
+            --accent-red: #A64B2A;     /* 经典朱砂 */
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-cream);
+            font-family: 'Noto Serif SC', 'Songti SC', 'SimSun', serif;
+            color: var(--ink-black);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            position: relative;
+        }
+
+        /* 宣纸质感纹理叠加层 */
+        .paper-grain {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+            opacity: 0.04;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+        }
+
+        /* 雅致的页眉设计 */
+        header {
+            text-align: center;
+            padding: 4vh 24px 2vh 24px;
+            z-index: 10;
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: 0.35em;
+            text-indent: 0.35em;
+            color: var(--ink-black);
+            margin-bottom: 6px;
+        }
+
+        .subtitle {
+            font-size: 11px;
+            font-weight: 300;
+            letter-spacing: 0.18em;
+            color: #8A857C;
+            text-transform: uppercase;
+        }
+
+        /* 核心展示区域容器 */
+        .viewer-container {
+            flex-grow: 1;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            z-index: 2;
+        }
+
+        model-viewer {
+            width: 85%;
+            height: 95%;
+            background-color: transparent;
+            outline: none;
+            cursor: pointer;
+            transition: opacity 0.5s ease;
+        }
+
+        /* 极尽精美的双层编钟 SVG 降级展示面板 */
+        .fallback-panel {
+            width: 90%;
+            height: 95%;
+            display: none; /* 当 3D 失败时切换为 flex */
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            z-index: 3;
+            opacity: 0;
+            transition: opacity 0.8s ease;
+        }
+
+        /* 编钟古铜及铜绿渐变样式 */
+        .fallback-bell {
+            cursor: pointer;
+            fill: url(#bronze-gradient);
+            stroke: #2E3830;
+            stroke-width: 1;
+            filter: drop-shadow(0px 6px 12px rgba(26, 26, 26, 0.2));
+            will-change: transform;
+        }
+
+        .fallback-bell:hover {
+            fill: url(#bronze-hover-gradient);
+        }
+
+        /* 钟枚（钟体乳钉）设计 */
+        .bell-stud {
+            fill: #E6C594;
+            opacity: 0.8;
+            pointer-events: none;
+        }
+
+        /* 古典红木挂架设计 */
+        .fallback-frame {
+            fill: url(#wood-gradient);
+            stroke: #120904;
+            stroke-width: 2;
+            filter: drop-shadow(0px 8px 16px rgba(0,0,0,0.3));
+        }
+
+        /* 金属挂钩与细节 */
+        .fallback-metal {
+            fill: url(#gold-gradient);
+            stroke: #4A3B23;
+            stroke-width: 0.8;
+        }
+
+        /* 响钟时的金色波纹涟漪 */
+        .sound-ripple {
+            fill: none;
+            stroke: var(--bronze-gold);
+            stroke-width: 1.5;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        /* 编钟摆动关键帧动画 */
+        @keyframes swing {
+            0% { transform: rotate(0deg); }
+            15% { transform: rotate(6deg); }
+            30% { transform: rotate(-5deg); }
+            45% { transform: rotate(4deg); }
+            60% { transform: rotate(-3deg); }
+            75% { transform: rotate(2deg); }
+            90% { transform: rotate(-1deg); }
+            100% { transform: rotate(0deg); }
+        }
+
+        .swinging {
+            animation: swing 2.4s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
+        }
+
+        /* 声效与音律 HUD 信息浮层 */
+        .hud-overlay {
+            position: absolute;
+            top: 5%;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .chime-calligraphy {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: 1px dashed rgba(176, 141, 87, 0.4);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(250, 246, 240, 0.92);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.02);
+            opacity: 0;
+            transform: scale(0.8) translateY(10px);
+            transition: all 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .chime-calligraphy.pulse {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+        }
+
+        .chime-calligraphy span {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--accent-red);
+        }
+
+        .chime-details {
+            margin-top: 10px;
+            font-size: 13px;
+            font-weight: 500;
+            letter-spacing: 0.15em;
+            color: var(--bronze-gold);
+            text-shadow: 0 1px 1px var(--bg-cream);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .chime-details.fade {
+            opacity: 1;
+        }
+
+        /* 底部控制面板与音律标尺 */
+        .footer-dashboard {
+            width: 100%;
+            max-width: 600px;
+            padding: 24px;
+            margin: 0 auto 3vh auto;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .interactive-strip {
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(to right, 
+                rgba(26, 26, 26, 0.05) 0%, 
+                var(--bronze-gold) 50%, 
+                rgba(26, 26, 26, 0.05) 100%
+            );
+            position: relative;
+            border-radius: 2px;
+        }
+
+        .strip-legend {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            color: #8A857C;
+            letter-spacing: 0.1em;
+            padding-top: 4px;
+        }
+
+        .guide-text {
+            font-size: 11px;
+            font-weight: 300;
+            color: #55524D;
+            letter-spacing: 0.1em;
+            text-align: center;
+            line-height: 1.6;
+            max-width: 85%;
+        }
+
+        /* 浮动 AR 实境按钮 */
+        #ar-button {
+            background-color: var(--bg-cream);
+            border: 1px solid var(--bronze-gold);
+            border-radius: 20px;
+            padding: 8px 16px;
+            color: var(--bronze-gold);
+            font-family: 'Noto Serif SC', serif;
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 0.1em;
+            cursor: pointer;
+            position: absolute;
+            bottom: 24px;
+            right: 24px;
+            transition: all 0.3s ease;
+            z-index: 20;
+        }
+
+        #ar-button:hover {
+            background-color: var(--bronze-gold);
+            color: var(--bg-cream);
+        }
+
+        /* 首次进入的点击手势解锁浮层（现代浏览器音频安全锁） */
+        .intro-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(250, 246, 240, 0.98);
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            transition: opacity 0.6s ease;
+        }
+
+        .modal-title {
+            text-align: center;
+            max-width: 80%;
+        }
+
+        .modal-title h2 {
+            font-size: 26px;
+            letter-spacing: 0.25em;
+            margin-bottom: 12px;
+            color: var(--ink-black);
+        }
+
+        .modal-title p {
+            font-size: 12px;
+            color: #8A857C;
+            letter-spacing: 0.1em;
+            line-height: 1.8;
+        }
+
+        .enter-btn {
+            background-color: var(--ink-black);
+            border: none;
+            color: var(--bg-cream);
+            padding: 14px 40px;
+            font-family: 'Noto Serif SC', serif;
+            font-size: 12px;
+            font-weight: 500;
+            letter-spacing: 0.2em;
+            cursor: pointer;
+            border-radius: 2px;
+            transition: all 0.4s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+        }
+
+        .enter-btn:hover {
+            background-color: var(--bronze-gold);
+            transform: translateY(-2px);
+        }
+
+        /* 中文独立案例页：沿用原舞台与钟架，仅补学院标识及页面导航。 */
+        body { height: auto; min-height: 100vh; min-height: 100svh; overflow-x: hidden; overflow-y: auto; }
+        header { padding: 20px 24px 8px; }
+        .identity-bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; max-width: 1180px; margin: 0 auto 22px; }
+        .identity-bar > a:first-child { min-width: 0; }
+        .cuc-mark { display: block; width: min(420px, 68vw); height: auto; mix-blend-mode: multiply; }
+        .course-link { color: #76562d; font: 500 13px/1.5 'Microsoft YaHei', sans-serif; text-decoration: none; white-space: nowrap; border-bottom: 1px solid rgba(176,141,87,.45); padding-bottom: 3px; }
+        .course-link:hover { color: #1A1A1A; border-color: currentColor; }
+        .subtitle { letter-spacing: .12em; }
+        .viewer-container { min-height: clamp(350px, 51vh, 540px); }
+        .hud-overlay { top: 5px; }
+        model-viewer[hidden] { display: none !important; }
+        .fallback-panel { display: flex; width: min(100%,1100px); height: auto; opacity: 1; }
+        .fallback-panel svg { display: block; width: 100%; height: auto; aspect-ratio: 850 / 480; }
+        .fallback-bell:focus-visible { stroke: #A64B2A; stroke-width: 3; outline: none; }
+        .footer-dashboard { max-width: 760px; margin-bottom: 10px; padding: 12px 24px; gap: 12px; }
+        .guide-text { font-family: 'Microsoft YaHei', sans-serif; font-size: 13px; line-height: 1.85; max-width: 100%; }
+        .demo-note { color: #7c7468; font-size: 12px; }
+        .demo-footer { display: flex; justify-content: center; gap: 28px; padding: 14px 20px 22px; }
+        :focus-visible { outline: 2px solid #A64B2A; outline-offset: 5px; }
+        @media (max-width: 620px) {
+            header { padding: 16px 18px 6px; }
+            .identity-bar { align-items: center; gap: 10px; margin-bottom: 22px; }
+            .cuc-mark { width: min(280px, 63vw); }
+            .course-link { font-size: 11px; }
+            h1 { font-size: 25px; }
+            .viewer-container { min-height: 300px; }
+            .chime-calligraphy { width: 50px; height: 50px; }
+            .chime-calligraphy span { font-size: 25px; }
+            .chime-details { font-size: 11px; margin-top: 5px; }
+            .strip-legend { font-size: 10px; letter-spacing: 0; }
+            .guide-text { font-size: 12px; }
+            .footer-dashboard { padding-inline: 18px; }
+            .modal-title h2 { font-size: 24px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="paper-grain"></div>
+
+    <!-- 现代浏览器音频解锁遮罩层 -->
+    <div class="intro-modal" id="start-modal">
+        <div class="modal-title">
+            <h2>古韵编钟</h2>
+            <p>双层青铜编钟 · 交互演奏示例</p>
+            <p style="margin-top: 15px; font-weight: 300;">
+                点击“鸣钟入画”开启声音，然后逐钟演奏。<br>
+                当前钟架为矢量示意，钟声由浏览器合成。
+            </p>
+        </div>
+        <button class="enter-btn" id="enter-btn">鸣钟入画</button>
+        <a class="course-link" href="index.html">返回课程首页</a>
+    </div>
+
+    <!-- 艺术博物馆页眉 -->
+    <header>
+        <div class="identity-bar">
+            <a href="index.html" aria-label="返回中国传媒大学国际传媒教育学院编钟课程首页"><img class="cuc-mark" src="assets/cuc-logo.jpg" alt="中国传媒大学国际传媒教育学院标识"></a>
+            <a class="course-link" href="index.html">返回课程首页</a>
+        </div>
+        <h1>古韵青铜</h1>
+        <div class="subtitle">双层编钟 · 十一音演奏示例</div>
+    </header>
+
+
+
+    <!-- 核心视觉容器：动态切换 3D 或极美 2D 降级方案 -->
+    <div class="viewer-container">
+        <div class="hud-overlay">
+        <div class="chime-calligraphy" id="chime-symbol">
+            <span id="chinese-char">宫</span>
+        </div>
+        <div class="chime-details" id="chime-label" aria-live="polite">宫（G3）— 196.0 赫兹</div>
+    </div>
+        <!-- 3D 编钟渲染引擎 -->
+        <model-viewer 
+            id="bianzhong-viewer"
+            hidden
+            aria-label="可选三维模型查看器"
+            ar
+            ar-modes="webxr scene-viewer quick-look"
+            camera-controls
+            auto-rotate
+            rotation-per-second="1.5deg"
+            shadow-intensity="1.2"
+            shadow-softness="0.75"
+            environment-image="neutral"
+            exposure="1.0"
+            interaction-prompt="none">
+            
+            <button slot="ar-button" id="ar-button">
+                进入增强现实
+            </button>
+        </model-viewer>
+
+        <!-- 降级方案：曾侯乙双层水墨青铜矢量挂架系统 -->
+        <div id="fallback-panel" class="fallback-panel">
+            <svg id="bianzhong-svg" viewBox="0 0 850 480" width="100%" height="100%" role="group" aria-label="双层编钟示意钟架，可逐钟演奏">
+                <defs>
+                    <!-- 极其逼真的青铜古锈蚀色彩渐变 -->
+                    <linearGradient id="bronze-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#4C5C50" />   <!-- 青铜绿 -->
+                        <stop offset="35%" stop-color="#738575" />  <!-- 浅氧化绿 -->
+                        <stop offset="70%" stop-color="#8F7855" />  <!-- 锈金铜 -->
+                        <stop offset="100%" stop-color="#212622" /> <!-- 深褐青铜 -->
+                    </linearGradient>
+                    <linearGradient id="bronze-hover-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#6E8574" />
+                        <stop offset="40%" stop-color="#99AA9B" />
+                        <stop offset="80%" stop-color="#B29C77" />
+                        <stop offset="100%" stop-color="#363E38" />
+                    </linearGradient>
+                    <!-- 金饰构件渐变 -->
+                    <linearGradient id="gold-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stop-color="#D9BA82" />
+                        <stop offset="50%" stop-color="#9C7F4C" />
+                        <stop offset="100%" stop-color="#4F3C1D" />
+                    </linearGradient>
+                    <!-- 深色红木漆器挂架渐变 -->
+                    <linearGradient id="wood-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stop-color="#1A0D07" />
+                        <stop offset="50%" stop-color="#3D2012" />
+                        <stop offset="100%" stop-color="#150A05" />
+                    </linearGradient>
+                </defs>
+            </svg>
+        </div>
+    </div>
+
+    <!-- 底部音律标尺与操作指南 -->
+    <div class="footer-dashboard">
+        <div class="interactive-strip"></div>
+        <div class="strip-legend">
+            <span>低音 · 左侧</span>
+            <span>中轴</span>
+            <span>高音 · 右侧</span>
+        </div>
+        <div class="guide-text">
+            <b>演奏方法</b><br>
+            点击不同的钟体，奏出跨越两个八度的 G 宫五声音阶（宫、商、角、徵、羽）。<br>
+            按 Tab 选择钟体，再按回车或空格演奏。<br>
+            下层为低音区，上层为高音区；同层由左至右音高上升。<br>
+            <span class="demo-note">当前为原案例的矢量示意钟架与合成钟声；示意图保持固定视角。</span>
+        </div>
+    </div>
+    <footer class="demo-footer"><a class="course-link" href="index.html">返回课程首页</a><a class="course-link source-link" href="https://haner199022.github.io/ireland-study-tour/examples/elegant_bianzhong.html" target="_blank" rel="noopener">查看原始案例 ↗</a></footer>
+
+    <script>
+        const startModal = document.getElementById('start-modal');
+        const enterBtn = document.getElementById('enter-btn');
+        const viewer = document.getElementById('bianzhong-viewer');
+        const fallbackPanel = document.getElementById('fallback-panel');
+        const symbolBadge = document.getElementById('chime-symbol');
+        const charElement = document.getElementById('chinese-char');
+        const labelElement = document.getElementById('chime-label');
+
+        let audioCtx = null;
+        let activeFadeTimeout = null;
+        let fallbackInitialized = false;
+
+        // 五声调式音谱映射表（共11枚悬挂钟，跨越 G3 至 G5 两个完整八度）
+        const pentatonicScale = [
+            { name: "宫", pitch: "G3", freq: 196.00 }, // 下层第 1 钟 (最大)
+            { name: "商", pitch: "A3", freq: 220.00 },
+            { name: "角", pitch: "B3", freq: 246.94 },
+            { name: "徵", pitch: "D4", freq: 293.66 },
+            { name: "羽", pitch: "E4", freq: 329.63 },
+            { name: "宫", pitch: "G4", freq: 392.00 }, // 下层第 6 钟
+            { name: "商", pitch: "A4", freq: 440.00 }, // 上层第 1 钟
+            { name: "角", pitch: "B4", freq: 493.88 },
+            { name: "徵", pitch: "D5", freq: 587.33 },
+            { name: "羽", pitch: "E5", freq: 659.25 },
+            { name: "宫", pitch: "G5", freq: 783.99 }  // 上层第 5 钟 (最小)
+        ];
+
+        // 原课程模型已不可用：不发出失效请求，直接使用原 SVG 示意钟架。
+        function switchToFallback() {
+            viewer.style.display = 'none';
+            fallbackPanel.style.display = 'flex';
+            fallbackPanel.style.opacity = '1';
+            if (!fallbackInitialized) {
+                fallbackInitialized = true;
+                setupSVGFallback();
+            }
+        }
+
+        // Web Audio Synthesizer: 采用泛音叠加物理建模合成古铜编钟厚重声效
+        function synthesizeBell(frequency) {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+
+            const now = audioCtx.currentTime;
+            const decay = 3.2; // 阻尼衰减秒数
+
+            // 还原青铜材质所特有的非谐波泛音物理分布律
+            const partials = [
+                { ratio: 1.0,  gain: 0.85,  decayScale: 1.0 },   // 基音 Hum
+                { ratio: 2.0,  gain: 0.48,  decayScale: 0.75 },  // 谐音 Prime
+                { ratio: 2.41, gain: 0.42,  decayScale: 0.65 },  // 独属青铜腔体的纯微小三度泛音 Tierce
+                { ratio: 3.0,  gain: 0.32,  decayScale: 0.48 },  // 泛音 Quint
+                { ratio: 4.12, gain: 0.22,  decayScale: 0.32 },  // Nominal
+                { ratio: 5.43, gain: 0.12,  decayScale: 0.20 },  // 高频金属振动
+                { ratio: 6.0,  gain: 0.08,  decayScale: 0.12 }   // 极高频亮色
+            ];
+
+            // 动态压缩器防止多重齐鸣时过载爆音
+            const compressor = audioCtx.createDynamicsCompressor();
+            compressor.threshold.setValueAtTime(-14, now);
+            compressor.knee.setValueAtTime(8, now);
+            compressor.ratio.setValueAtTime(5, now);
+            compressor.connect(audioCtx.destination);
+
+            const bellMaster = audioCtx.createGain();
+            bellMaster.connect(compressor);
+            bellMaster.gain.setValueAtTime(0, now);
+            bellMaster.gain.linearRampToValueAtTime(0.55, now + 0.005); // 瞬态爆发 Attack
+            bellMaster.gain.exponentialRampToValueAtTime(0.0001, now + decay); // 物理对数衰减
+
+            partials.forEach(p => {
+                const osc = audioCtx.createOscillator();
+                const partialGain = audioCtx.createGain();
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(frequency * p.ratio, now);
+
+                partialGain.gain.setValueAtTime(p.gain, now);
+                partialGain.gain.exponentialRampToValueAtTime(0.0001, now + (decay * p.decayScale));
+
+                osc.connect(partialGain);
+                partialGain.connect(bellMaster);
+
+                osc.start(now);
+                osc.stop(now + decay + 0.1);
+            });
+        }
+
+        // 解锁音频上下文
+        enterBtn.addEventListener('click', () => {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            startModal.style.opacity = '0';
+            setTimeout(() => {
+                startModal.style.display = 'none';
+            }, 600);
+        });
+
+        // 统一更新 HUD 显示
+        function updateHUD(note) {
+            charElement.textContent = note.name;
+            labelElement.textContent = `${note.name}（${note.pitch}）— ${note.freq.toFixed(1)} 赫兹`;
+
+            // 重置动画
+            symbolBadge.classList.remove('pulse');
+            labelElement.classList.remove('fade');
+            void symbolBadge.offsetWidth;
+            
+            symbolBadge.classList.add('pulse');
+            labelElement.classList.add('fade');
+
+            if (activeFadeTimeout) clearTimeout(activeFadeTimeout);
+
+            activeFadeTimeout = setTimeout(() => {
+                symbolBadge.classList.remove('pulse');
+                labelElement.classList.remove('fade');
+            }, 2500);
+        }
+
+        // 3D 页面点击判定音高映射
+        viewer.addEventListener('click', (event) => {
+            const rect = viewer.getBoundingClientRect();
+            const clickX = event.clientX - rect.left;
+            const normalizedX = Math.max(0, Math.min(1.0, clickX / rect.width));
+
+            const index = Math.round(normalizedX * (pentatonicScale.length - 1));
+            const note = pentatonicScale[index];
+
+            synthesizeBell(note.freq);
+            updateHUD(note);
+        });
+
+        // 精心绘制曾侯乙双层编钟与声波粒子扩散
+        function setupSVGFallback() {
+            const svg = document.getElementById('bianzhong-svg');
+            if (!svg) return;
+
+            // 1. 绘制编钟大漆木雕挂架
+            // 下层横梁
+            createSVGRect(svg, 30, 260, 790, 24, 4, "fallback-frame");
+            // 上层横梁
+            createSVGRect(svg, 100, 110, 650, 18, 3, "fallback-frame");
+
+            // 左主支撑柱
+            createSVGRect(svg, 70, 70, 32, 350, 2, "fallback-frame");
+            // 右主支撑柱
+            createSVGRect(svg, 748, 70, 32, 350, 2, "fallback-frame");
+
+            // 中轴铜质加固构件装饰
+            createSVGRect(svg, 412, 60, 26, 360, 1, "fallback-metal");
+
+            // 主底座（左）
+            createSVGPath(svg, "M30,420 L140,420 L120,400 L50,400 Z", "fallback-frame");
+            // 主底座（右）
+            createSVGPath(svg, "M680,420 L790,420 L770,400 L700,400 Z", "fallback-frame");
+
+            // 2. 悬挂并配对 11 枚大小不同的编钟
+            // 下层编钟（第1-6钟，映射低音 G3 - G4）
+            const lowerBells = pentatonicScale.slice(0, 6);
+            const lowerStartX = 140;
+            const lowerEndX = 680;
+            const lowerStep = (lowerEndX - lowerStartX) / 5;
+
+            lowerBells.forEach((note, index) => {
+                const x = lowerStartX + index * lowerStep;
+                const y = 284;
+                const width = 54 - (index * 2.2);
+                const height = 66 - (index * 2.4);
+                drawHangingBell(svg, x, y, width, height, note, "beam-low", 260);
+            });
+
+            // 上层编钟（第7-11钟，映射高音 A4 - G5）
+            const upperBells = pentatonicScale.slice(6, 11);
+            const upperStartX = 190;
+            const upperEndX = 630;
+            const upperStep = (upperEndX - upperStartX) / 4;
+
+            upperBells.forEach((note, index) => {
+                const x = upperStartX + index * upperStep;
+                const y = 128;
+                const width = 38 - (index * 1.5);
+                const height = 48 - (index * 1.8);
+                drawHangingBell(svg, x, y, width, height, note, "beam-high", 110);
+            });
+        }
+
+        // 绘制单枚铜纽扣、吊索、钟体及声波扩散涟漪
+        function drawHangingBell(svg, cx, cy, w, h, note, groupClass, beamY) {
+            const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
+            group.setAttribute("class", groupClass);
+            // 设定物理摆动支点为横梁交接处
+            group.style.transformOrigin = `${cx}px ${beamY}px`;
+            group.style.transition = "transform 0.15s ease-out";
+
+            // 吊索
+            const rope = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            rope.setAttribute("x1", cx);
+            rope.setAttribute("y1", beamY + 12);
+            rope.setAttribute("x2", cx);
+            rope.setAttribute("y2", cy);
+            rope.setAttribute("stroke", "#9C7F4C");
+            rope.setAttribute("stroke-width", "2.5");
+            group.appendChild(rope);
+
+            // 钟顶铜扣纽
+            const loop = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+            loop.setAttribute("x", cx - 4);
+            loop.setAttribute("y", cy - 4);
+            loop.setAttribute("width", "8");
+            loop.setAttribute("height", "8");
+            loop.setAttribute("rx", "2");
+            loop.setAttribute("class", "fallback-metal");
+            group.appendChild(loop);
+
+            // 传统中国青铜双铣（双合瓦）钟体边缘计算
+            const bell = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            const halfW = w / 2;
+            const topY = cy + 4;
+            const botY = cy + h;
+            const flare = w * 0.15; // 底部外喇叭口外张弧度
+
+            // 绘制两端起翘、底口内凹的经典合瓦编钟路径 (Sui / 铣)
+            const bellPath = `M ${cx - halfW + 4},${topY} 
+                              L ${cx + halfW - 4},${topY} 
+                              Q ${cx + halfW - 2},${topY + h * 0.3} ${cx + halfW},${topY + h * 0.65}
+                              L ${cx + halfW + flare},${botY} 
+                              Q ${cx},${botY - (h * 0.12)} ${cx - halfW - flare},${botY}
+                              L ${cx - halfW},${topY + h * 0.65}
+                              Q ${cx - halfW + 2},${topY + h * 0.3} ${cx - halfW + 4},${topY} Z`;
+
+            bell.setAttribute("d", bellPath);
+            bell.setAttribute("class", "fallback-bell");
+            bell.setAttribute('role', 'button');
+            bell.setAttribute('tabindex', '0');
+            bell.setAttribute('aria-label', `${note.name}，${note.pitch}，${note.freq.toFixed(1)}赫兹，按回车或空格演奏`);
+            bell.addEventListener('keydown', event => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    bell.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+                }
+            });
+            group.appendChild(bell);
+
+            // 绘制古典钟体乳钉（钟枚）—— 还原曾侯乙古钟青铜排钉细节
+            const rows = 3;
+            const cols = 2;
+            const startXOffset = halfW * 0.35;
+            const startY = topY + h * 0.2;
+            const spacingY = h * 0.12;
+
+            for (let r = 0; r < rows; r++) {
+                const curY = startY + r * spacingY;
+                // 左侧两排
+                createSVGCircle(group, cx - startXOffset, curY, 2, "bell-stud");
+                createSVGCircle(group, cx - startXOffset + 5, curY, 2, "bell-stud");
+                // 右侧两排
+                createSVGCircle(group, cx + startXOffset, curY, 2, "bell-stud");
+                createSVGCircle(group, cx + startXOffset - 5, curY, 2, "bell-stud");
+            }
+
+            // 独立挂设静态声波涟漪环（防止跟随钟摆件一起旋转偏离）
+            const ripple = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            ripple.setAttribute("cx", cx);
+            ripple.setAttribute("cy", botY - 5);
+            ripple.setAttribute("r", "10");
+            ripple.setAttribute("class", "sound-ripple");
+            svg.appendChild(ripple);
+
+            // 监听点击，同时派发物理阻尼摇晃、涟漪扩散、Web Audio 乐音合成
+            bell.addEventListener('click', (e) => {
+                e.stopPropagation();
+                
+                // 击响音频
+                synthesizeBell(note.freq);
+                updateHUD(note);
+
+                // 摇摆动画触发
+                group.classList.remove('swinging');
+                void group.offsetWidth; // 触发回流重塑
+                group.classList.add('swinging');
+
+                // 声波涟漪向外荡漾扩散
+                ripple.style.transition = "none";
+                ripple.setAttribute("r", "10");
+                ripple.style.opacity = "1";
+                void ripple.offsetWidth;
+                
+                ripple.style.transition = "all 1.8s cubic-bezier(0.1, 0.8, 0.2, 1)";
+                ripple.setAttribute("r", (w * 3.8).toString());
+                ripple.style.opacity = "0";
+            });
+
+            svg.appendChild(group);
+        }
+
+        // SVG 构建助手
+        function createSVGRect(parent, x, y, w, h, rx, className) {
+            const el = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+            el.setAttribute("x", x);
+            el.setAttribute("y", y);
+            el.setAttribute("width", w);
+            el.setAttribute("height", h);
+            el.setAttribute("rx", rx);
+            el.setAttribute("class", className);
+            parent.appendChild(el);
+            return el;
+        }
+
+        function createSVGPath(parent, d, className) {
+            const el = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            el.setAttribute("d", d);
+            el.setAttribute("class", className);
+            parent.appendChild(el);
+            return el;
+        }
+
+        function createSVGCircle(parent, cx, cy, r, className) {
+            const el = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            el.setAttribute("cx", cx);
+            el.setAttribute("cy", cy);
+            el.setAttribute("r", r);
+            el.setAttribute("class", className);
+            parent.appendChild(el);
+            return el;
+        }
+        switchToFallback();
+    </script>
+</body>
+</html>

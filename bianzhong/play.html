@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#51247a">
+  <title>编钟 · 交互体验</title>
+  <meta name="description" content="点击十枚示意编钟，体验五声音阶与浏览器合成钟声，也可导入本地单文件 GLB 模型。">
+  <link rel="stylesheet" href="demo.css">
+  <script src="demo.js" defer></script>
+</head>
+<body>
+  <main class="experience">
+    <header class="experience-header">
+      <div><p class="eyebrow">动手体验</p><h1>编钟 · 交互体验</h1></div>
+      <a href="index.html" class="home-link">返回课程首页 <span aria-hidden="true">↗</span></a>
+    </header>
+
+    <div class="stage" id="stage">
+      <div class="stage-caption"><span class="mode-label" id="modeLabel">示意钟架 · 浏览器合成钟声</span><span class="pitch-direction">低音 <span aria-hidden="true">⟶</span> 高音</span></div>
+      <svg id="bellRack" viewBox="0 0 1100 390" aria-hidden="true"></svg>
+      <model-viewer id="modelViewer" alt="用户导入的本地三维模型" camera-controls loading="eager" environment-image="neutral" interaction-prompt="none" shadow-intensity="1" shadow-softness="0.9" exposure="1.05" camera-orbit="35deg 78deg auto" touch-action="pan-y" hidden></model-viewer>
+      <div class="note-flash" id="noteFlash" aria-hidden="true"><span id="flashDegree">徵</span><small id="flashPitch">G3</small></div>
+      <div class="stage-bottom"><span id="stageHint">点击钟体，听见从左到右的音高变化</span><span class="five-notes">宫 · 商 · 角 · 徵 · 羽</span></div>
+    </div>
+
+    <section class="performance" aria-label="编钟演奏控制">
+      <div class="note-keys" id="noteKeys"></div>
+      <div class="control-row">
+        <div class="playback-controls"><button class="primary-button" id="playSequence" type="button"><span aria-hidden="true">▶</span> 奏一段</button><button class="secondary-button" id="stopSequence" type="button" disabled><span aria-hidden="true">■</span> 停止</button></div>
+        <div class="sound-controls"><button class="mute-button" id="muteButton" type="button" aria-pressed="false">静音</button><label class="volume-label" for="volume">音量</label><input id="volume" type="range" min="0" max="100" value="65" aria-label="演奏音量"><output for="volume" id="volumeValue">65%</output></div>
+      </div>
+      <p class="status" id="status" role="status" aria-live="polite">点击钟体或音键开始，也可用键盘数字 1—0 演奏。</p>
+    </section>
+
+    <details class="model-tools" id="modelTools">
+      <summary><span>导入自己的三维模型</span><span class="summary-detail">可选</span></summary>
+      <div class="model-tools-inner">
+        <p>选择或拖入单文件 <code>.glb</code> 后，可拖动旋转、缩放查看；在舞台横向点击可触发十个音区。音区按屏幕位置划分，不对应文物钟体的实测音高。</p>
+        <div class="model-actions"><button class="secondary-button" id="loadModel" type="button">选择模型</button><button class="secondary-button" id="resetView" type="button" disabled>复位视角</button><button class="secondary-button" id="showRack" type="button" disabled>回到示意钟架</button><label class="spin-toggle"><input id="spin" type="checkbox" disabled> 自动旋转</label></div>
+        <input id="modelFile" type="file" accept=".glb,model/gltf-binary" hidden>
+        <p class="model-status" id="modelStatus" role="status">无需模型即可演奏。支持包含全部资源的未压缩单文件 GLB；不支持多文件 GLTF 或需联网解码的压缩扩展。</p>
+      </div>
+    </details>
+    <footer class="source-note">本体验使用示意图形与六个非谐分音合成音色；并非文物实录，也未模拟“一钟双音”。<a href="https://haner199022.github.io/ireland-study-tour/bianzhong.html" target="_blank" rel="noopener noreferrer">查看原始案例 <span aria-hidden="true">↗</span></a></footer>
+    <noscript><p class="no-script">请启用浏览器脚本，以使用敲钟与音量功能。</p></noscript>
+  </main>
+</body>
+</html>

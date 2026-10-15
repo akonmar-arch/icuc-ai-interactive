@@ -1,0 +1,1989 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>水墨圆环 · 流体形变与喷溅</title>
+  <script>if (new URLSearchParams(location.search).has('embed')) document.documentElement.classList.add('embedded-preview');</script>
+  <style>
+    /* One warm paper field, one centered ink mark, quiet controls. */
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #FCFBFD; }
+    canvas { display: block; width: 100vw; height: 100vh; touch-action: none; }
+    .ink-colors {
+      position: fixed;
+      left: 50%;
+      bottom: calc(clamp(18px, 4vh, 42px) + 64px);
+      transform: translateX(-50%);
+      display: flex;
+      gap: 2px;
+      padding: 5px 7px;
+      border: 1px solid rgba(30, 27, 25, .13);
+      border-radius: 999px;
+      background: rgba(252, 251, 253, .9);
+      box-shadow: 0 4px 20px rgba(30, 27, 25, .04);
+    }
+    .ink-colors button {
+      display: grid;
+      place-items: center;
+      width: 44px;
+      height: 44px;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      background: transparent;
+      cursor: pointer;
+    }
+    .ink-colors button::before {
+      content: '';
+      display: block;
+      width: 22px;
+      height: 22px;
+      margin: auto;
+      border: 1px solid rgba(30, 27, 25, .22);
+      border-radius: 50%;
+      background: var(--ink);
+    }
+    .ink-colors button[aria-pressed="true"]::before { outline: 1px solid #292623; outline-offset: 3px; }
+    .ink-colors button:focus-visible { outline: 2px solid #292623; outline-offset: 1px; }
+    .controls {
+      position: fixed;
+      left: 50%;
+      bottom: clamp(18px, 4vh, 42px);
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      max-width: calc(100vw - 24px);
+      padding: 7px;
+      border: 1px solid rgba(30, 27, 25, .18);
+      border-radius: 999px;
+      background: rgba(252, 251, 253, .9);
+      box-shadow: 0 5px 24px rgba(30, 27, 25, .06);
+      color: #292623;
+      font: 12px/1.2 system-ui, sans-serif;
+      white-space: nowrap;
+    }
+    .controls button, .file-label {
+      box-sizing: border-box;
+      min-height: 34px;
+      padding: 8px 12px;
+      border: 1px solid transparent;
+      border-radius: 999px;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+    }
+    .controls button:hover:not(:disabled), .file-label:hover, .controls button[aria-pressed="true"] {
+      border-color: rgba(30, 27, 25, .22);
+      background: rgba(30, 27, 25, .06);
+    }
+    .controls button:focus-visible, .file-label:focus-within { outline: 2px solid #292623; outline-offset: 2px; }
+    .controls button:disabled { opacity: .45; cursor: default; }
+    .file-label { border-color: rgba(30, 27, 25, .22); }
+    .file-label input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+    .short-label { display: none; }
+    .file-name { max-width: min(20vw, 150px); overflow: hidden; text-overflow: ellipsis; color: #77716b; }
+    .divider { width: 1px; height: 18px; background: rgba(30, 27, 25, .15); }
+    .capture-status {
+      position: fixed;
+      left: 50%;
+      bottom: calc(clamp(18px, 4vh, 42px) + 126px);
+      transform: translateX(-50%);
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 6px;
+      max-width: calc(100vw - 24px);
+    }
+    .capture-status span:not(:empty) {
+      padding: 7px 12px;
+      border-radius: 999px;
+      background: rgba(252, 251, 253, .95);
+      color: #6d6258;
+      font: 12px/1.3 system-ui, sans-serif;
+      text-align: center;
+    }
+    .xr-entry {
+      position: fixed;
+      top: 18px;
+      right: 18px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      max-width: min(390px, calc(100vw - 36px));
+      color: #292623;
+      font: 12px/1.35 system-ui, sans-serif;
+    }
+    .xr-entry button, .xr-overlay button {
+      flex: none;
+      padding: 9px 13px;
+      border: 1px solid rgba(30, 27, 25, .2);
+      border-radius: 999px;
+      background: rgba(252, 251, 253, .93);
+      color: #292623;
+      font: inherit;
+      cursor: pointer;
+    }
+    .xr-entry button:disabled { opacity: .5; cursor: default; }
+    .xr-entry button:focus-visible, .xr-overlay button:focus-visible { outline: 2px solid #292623; outline-offset: 2px; }
+    .xr-entry span { max-width: 240px; }
+    .xr-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      align-items: flex-start;
+      justify-content: flex-end;
+      gap: 8px;
+      padding: 18px;
+      box-sizing: border-box;
+    }
+    .xr-overlay.active { display: flex; }
+    .xr-overlay button { pointer-events: auto; }
+    .embedded-preview .xr-entry { display: none; }
+    @media (max-width: 540px) {
+      .controls { gap: 2px; }
+      .controls button, .file-label { padding-inline: 5px; }
+      .wide-label { display: none; }
+      .short-label { display: inline; }
+      .file-name { display: none; }
+    }
+    .layer-panel { position:fixed; z-index:5; top:18px; left:18px; width:320px; max-width:calc(100vw - 36px); color:#30283b; font:12px/1.5 system-ui,sans-serif; }
+    .layer-panel > summary { box-sizing:border-box; display:flex; justify-content:space-between; align-items:center; width:116px; padding:9px 13px; border:1px solid #d6cfdf; border-radius:22px; background:rgba(252,251,253,.94); cursor:pointer; list-style:none; user-select:none; }
+    .layer-panel > summary::-webkit-details-marker { display:none; }
+    .layer-panel > summary span { font-size:15px; color:#72588c; }
+    .layer-panel[open] > summary span { transform:rotate(45deg); }
+    .layer-body { box-sizing:border-box; margin-top:8px; padding:14px; border:1px solid #dfd9e5; border-radius:16px; background:rgba(252,251,253,.97); box-shadow:0 12px 40px #2b123413; max-height:calc(100dvh - 210px); overflow:auto; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:#d5c8df transparent; }
+    .layer-body p { margin:0 0 10px; color:#776783; font-size:11px; }
+    .layer-item { border-top:1px solid #ece7f0; }
+    .layer-row { display:flex; align-items:center; justify-content:space-between; gap:6px; padding:9px 0; }
+    .layer-check { display:flex; align-items:center; gap:7px; min-width:0; cursor:pointer; }
+    .layer-check input { width:15px; height:15px; flex-shrink:0; margin:0; accent-color:#623589; }
+    .layer-row small { display:block; font-size:9px; line-height:1.6; color:#8b7d95; }
+    .layer-row-actions { display:flex; flex-shrink:0; gap:4px; }
+    .layer-body button { font:inherit; color:#6a457d; background:transparent; border:1px solid #ddd3e5; border-radius:7px; padding:5px 7px; cursor:pointer; white-space:nowrap; }
+    .layer-row-actions button { font-size:10px; padding:5px 6px; }
+    .layer-body button:hover { background:#eee6f3; }
+    .layer-body button[aria-pressed="true"],.layer-body button[aria-expanded="true"] { color:#fff; background:#613880; border-color:#613880; }
+    .layer-body button:focus-visible,.layer-panel > summary:focus-visible,.layer-body input:focus-visible { outline:2px solid #6c4190; outline-offset:3px; }
+    .layer-editor { margin:0 0 10px; padding:10px 11px 8px; border-radius:9px; background:#f3eef6; }
+    .layer-editor[hidden] { display:none; }
+    .layer-param + .layer-param { margin-top:8px; }
+    .layer-param-label { display:flex; align-items:center; justify-content:space-between; }
+    .layer-param-label label { color:#655471; font-size:11px; }
+    .layer-param output { color:#503267; font-size:11px; font-variant-numeric:tabular-nums; }
+    .layer-param input[type="range"] { display:block; box-sizing:border-box; width:100%; height:22px; margin:2px 0 0; accent-color:#623589; cursor:pointer; }
+    .layer-scene-actions { display:flex; gap:8px; padding-bottom:12px; }
+    .layer-scene-actions button:first-child { flex:1; background:#eee5f4; }
+    .layer-actions { display:flex; gap:8px; margin-top:10px; }
+    .layer-body .layer-tip { margin:12px 0 0; font-size:10px; }
+    body.in-ar .layer-panel { display:none; }
+    @media(max-width:540px) { .layer-panel { top:12px; left:12px; max-width:calc(100vw - 24px); } .xr-entry { top:12px; right:12px; max-width:calc(100vw - 146px); } .xr-entry span { display:none; } .layer-body { max-height:calc(100dvh - 210px); } }
+    @media(max-width:350px) { .layer-body { padding:12px 10px; } .layer-row-actions button { padding:5px; } .layer-row small { font-size:8px; } }
+  </style>
+</head>
+<body>
+  <canvas aria-label="独立水浪、水墨、声波、水珠与喷溅组成的音乐圆环；元素图层可单独查看，拖动可以绘画" role="img"></canvas>
+  <details class="layer-panel" id="layer-panel">
+    <summary>元素图层 <span aria-hidden="true">＋</span></summary>
+    <div class="layer-body">
+      <p>点击“调整”，改变每一层的形态与数量。</p>
+      <div class="layer-scene-actions"><button type="button" id="reset-layer-scene">恢复原图布局</button><button type="button" id="pause-layer-scene" aria-pressed="true">开始动效</button></div>
+      <div class="layer-item">
+        <div class="layer-row">
+          <label class="layer-check"><input type="checkbox" data-layer="water" checked><span>透明水浪<small>旋转 · 翻卷 · 流动形变</small></span></label>
+          <div class="layer-row-actions"><button type="button" data-solo="water" aria-label="只看透明水浪" aria-pressed="false">单独看</button><button type="button" class="layer-edit-button" data-edit-layer="water" aria-label="调整透明水浪" aria-expanded="false" aria-controls="layer-editor-water">调整</button></div>
+        </div>
+        <div class="layer-editor" id="layer-editor-water" hidden>
+          <div class="layer-param"><div class="layer-param-label"><label for="layer-water-width">宽度</label><output for="layer-water-width" id="value-water-width">100%</output></div><input type="range" id="layer-water-width" data-param-layer="water" data-param="width" data-format="percent" min="0.45" max="1.8" step="0.05" value="1" aria-label="透明水浪宽度" aria-describedby="value-water-width"></div>
+          <div class="layer-param"><div class="layer-param-label"><label for="layer-water-speed">速度</label><output for="layer-water-speed" id="value-water-speed">1×</output></div><input type="range" id="layer-water-speed" data-param-layer="water" data-param="speed" data-format="speed" min="0" max="2" step="0.05" value="1" aria-label="透明水浪速度" aria-describedby="value-water-speed"></div>
+        </div>
+      </div>
+      <div class="layer-item">
+        <div class="layer-row">
+          <label class="layer-check"><input type="checkbox" data-layer="inkBlack" checked><span>浓墨<small>不规则轮廓 · 破碎边缘</small></span></label>
+          <div class="layer-row-actions"><button type="button" data-solo="inkBlack" aria-label="只看浓墨" aria-pressed="false">单独看</button><button type="button" class="layer-edit-button" data-edit-layer="inkBlack" aria-label="调整浓墨" aria-expanded="false" aria-controls="layer-editor-inkBlack">调整</button></div>
+        </div>
+        <div class="layer-editor" id="layer-editor-inkBlack" hidden>
+          <div class="layer-param"><div class="layer-param-label"><label for="layer-inkBlack-width">宽度</label><output for="layer-inkBlack-width" id="value-inkBlack-width">100%</output></div><input type="range" id="layer-inkBlack-width" data-param-layer="inkBlack" data-param="width" data-format="percent" min="0.45" max="1.8" step="0.05" value="1" aria-label="浓墨宽度" aria-describedby="value-inkBlack-width"></div>
+          <div class="layer-param"><div class="layer-param-label"><label for="layer-inkBlack-irregularity">起伏</label><output for="layer-inkBlack-irregularity" id="value-inkBlack-irregularity">100%</output></div><input type="range" id="layer-inkBlack-irregularity" data-param-layer="inkBlack" data-param="irregularity" data-format="percent" min="0" max="2" step="0.05" value="1" aria-label="浓墨起伏" aria-describedby="value-inkBlack-irregularity"></div>
+        </div>
+      </div>
+      <div class="layer-item">
+        <div class="layer-row">
+          <label class="layer-check"><input type="checkbox" data-layer="inkPurple" checked><span>紫色水墨<small>反向流动 · 浓淡变化</small></span></label>
+          <div class="layer-row-actions"><button type="button" data-solo="inkPurple" aria-label="只看紫色水墨" aria-pressed="false">单独看</button><button type="button" class="layer-edit-button" data-edit-layer="inkPurple" aria-label="调整紫色水墨" aria-expanded="false" aria-controls="layer-editor-inkPurple">调整</button></div>
+        </div>
+        <div class="layer-editor" id="layer-editor-inkPurple" hidden>
+          <div class="layer-param"><div class="layer-param-label"><label for="layer-inkPurple-width">宽度</label><output for="layer-inkPurple-width" id="value-inkPurple-width">100%</output></div><input type="range" id="layer-inkPurple-width" data-param-layer="inkPurple" data-param="width" data-format="percent" min="0.45" max="1.8" step="0.05" value="1" aria-label="紫色水墨宽度" aria-describedby="value-inkPurple-width"></div>
+          <div class="layer-param"><div class="layer-param-label"><label for="layer-inkPurple-irregularity">起伏</label><output for="layer-inkPurple-irregularity" id="value-inkPurple-irregularity">100%</output></div><input type="range" id="layer-inkPurple-irregularity" data-param-layer="inkPurple" data-param="irregularity" data-format="percent" min="0" max="2" step="0.05" value="1" aria-label="紫色水墨起伏" aria-describedby="value-inkPurple-irregularity"></div>
+        </div>
+      </div>
+      <div class="layer-item">
+        <div class="layer-row">
+          <label class="layer-check"><input type="checkbox" data-layer="filaments" checked><span>声波曲线<small>独立波形 · 舒展起伏</small></span></label>
+          <div class="layer-row-actions"><button type="button" data-solo="filaments" aria-label="只看声波曲线" aria-pressed="false">单独看</button><button type="button" class="layer-edit-button" data-edit-layer="filaments" aria-label="调整声波曲线" aria-expanded="false" aria-controls="layer-editor-filaments">调整</button></div>
+        </div>
+        <div class="layer-editor" id="layer-editor-filaments" hidden>
+          <div class="layer-param"><div class="layer-param-label"><label for="layer-filaments-amplitude">幅度</label><output for="layer-filaments-amplitude" id="value-filaments-amplitude">100%</output></div><input type="range" id="layer-filaments-amplitude" data-param-layer="filaments" data-param="amplitude" data-format="percent" min="0" max="2" step="0.05" value="1" aria-label="声波曲线幅度" aria-describedby="value-filaments-amplitude"></div>
+          <div class="layer-param"><div class="layer-param-label"><label for="layer-filaments-speed">速度</label><output for="layer-filaments-speed" id="value-filaments-speed">1×</output></div><input type="range" id="layer-filaments-speed" data-param-layer="filaments" data-param="speed" data-format="speed" min="0" max="2" step="0.05" value="1" aria-label="声波曲线速度" aria-describedby="value-filaments-speed"></div>
+        </div>
+      </div>
+      <div class="layer-item">
+        <div class="layer-row">
+          <label class="layer-check"><input type="checkbox" data-layer="spectrum" checked><span>频谱<small>随音乐逐根起伏</small></span></label>
+          <div class="layer-row-actions"><button type="button" data-solo="spectrum" aria-label="只看频谱" aria-pressed="false">单独看</button><button type="button" class="layer-edit-button" data-edit-layer="spectrum" aria-label="调整频谱" aria-expanded="false" aria-controls="layer-editor-spectrum">调整</button></div>
+        </div>
+        <div class="layer-editor" id="layer-editor-spectrum" hidden>
+          <div class="layer-param"><div class="layer-param-label"><label for="layer-spectrum-height">高度</label><output for="layer-spectrum-height" id="value-spectrum-height">100%</output></div><input type="range" id="layer-spectrum-height" data-param-layer="spectrum" data-param="height" data-format="percent" min="0" max="2" step="0.05" value="1" aria-label="频谱高度" aria-describedby="value-spectrum-height"></div>
+          <div class="layer-param"><div class="layer-param-label"><label for="layer-spectrum-speed">速度</label><output for="layer-spectrum-speed" id="value-spectrum-speed">1×</output></div><input type="range" id="layer-spectrum-speed" data-param-layer="spectrum" data-param="speed" data-format="speed" min="0" max="2" step="0.05" value="1" aria-label="频谱速度" aria-describedby="value-spectrum-speed"></div>
+        </div>
+      </div>
+      <div class="layer-item">
+        <div class="layer-row">
+          <label class="layer-check"><input type="checkbox" data-layer="droplets" checked><span>水珠<small>大小变化 · 多方向飞散</small></span></label>
+          <div class="layer-row-actions"><button type="button" data-solo="droplets" aria-label="只看水珠" aria-pressed="false">单独看</button><button type="button" class="layer-edit-button" data-edit-layer="droplets" aria-label="调整水珠" aria-expanded="false" aria-controls="layer-editor-droplets">调整</button></div>
+        </div>
+        <div class="layer-editor" id="layer-editor-droplets" hidden>
+          <div class="layer-param"><div class="layer-param-label"><label for="layer-droplets-count">数量</label><output for="layer-droplets-count" id="value-droplets-count">28</output></div><input type="range" id="layer-droplets-count" data-param-layer="droplets" data-param="count" data-format="count" min="0" max="120" step="1" value="28" aria-label="水珠数量" aria-describedby="value-droplets-count"></div>
+          <div class="layer-param"><div class="layer-param-label"><label for="layer-droplets-size">大小</label><output for="layer-droplets-size" id="value-droplets-size">100%</output></div><input type="range" id="layer-droplets-size" data-param-layer="droplets" data-param="size" data-format="percent" min="0.35" max="2" step="0.05" value="1" aria-label="水珠大小" aria-describedby="value-droplets-size"></div>
+        </div>
+      </div>
+      <div class="layer-item">
+        <div class="layer-row">
+          <label class="layer-check"><input type="checkbox" data-layer="splashes" checked><span>墨水喷溅<small>重拍触发 · 定向扩散</small></span></label>
+          <div class="layer-row-actions"><button type="button" data-solo="splashes" aria-label="只看墨水喷溅" aria-pressed="false">单独看</button><button type="button" class="layer-edit-button" data-edit-layer="splashes" aria-label="调整墨水喷溅" aria-expanded="false" aria-controls="layer-editor-splashes">调整</button></div>
+        </div>
+        <div class="layer-editor" id="layer-editor-splashes" hidden>
+          <div class="layer-param"><div class="layer-param-label"><label for="layer-splashes-count">数量</label><output for="layer-splashes-count" id="value-splashes-count">110</output></div><input type="range" id="layer-splashes-count" data-param-layer="splashes" data-param="count" data-format="count" min="0" max="240" step="1" value="110" aria-label="墨水喷溅数量" aria-describedby="value-splashes-count"></div>
+          <div class="layer-param"><div class="layer-param-label"><label for="layer-splashes-spread">范围</label><output for="layer-splashes-spread" id="value-splashes-spread">100%</output></div><input type="range" id="layer-splashes-spread" data-param-layer="splashes" data-param="spread" data-format="percent" min="0.3" max="2" step="0.05" value="1" aria-label="墨水喷溅范围" aria-describedby="value-splashes-spread"></div>
+        </div>
+      </div>
+      <div class="layer-item">
+        <div class="layer-row">
+          <label class="layer-check"><input type="checkbox" data-layer="crystals" checked><span>晶体碎片<small>独立翻转 · 漂浮</small></span></label>
+          <div class="layer-row-actions"><button type="button" data-solo="crystals" aria-label="只看晶体碎片" aria-pressed="false">单独看</button><button type="button" class="layer-edit-button" data-edit-layer="crystals" aria-label="调整晶体碎片" aria-expanded="false" aria-controls="layer-editor-crystals">调整</button></div>
+        </div>
+        <div class="layer-editor" id="layer-editor-crystals" hidden>
+          <div class="layer-param"><div class="layer-param-label"><label for="layer-crystals-count">数量</label><output for="layer-crystals-count" id="value-crystals-count">5</output></div><input type="range" id="layer-crystals-count" data-param-layer="crystals" data-param="count" data-format="count" min="0" max="16" step="1" value="5" aria-label="晶体碎片数量" aria-describedby="value-crystals-count"></div>
+          <div class="layer-param"><div class="layer-param-label"><label for="layer-crystals-size">大小</label><output for="layer-crystals-size" id="value-crystals-size">100%</output></div><input type="range" id="layer-crystals-size" data-param-layer="crystals" data-param="size" data-format="percent" min="0.35" max="2" step="0.05" value="1" aria-label="晶体碎片大小" aria-describedby="value-crystals-size"></div>
+        </div>
+      </div>
+      <div class="layer-actions"><button type="button" id="show-all-layers">显示全部</button><button type="button" id="hide-all-layers">隐藏全部</button></div>
+      <p class="layer-tip">数量设为 0 即可移除；点击画布可触发喷溅。</p>
+    </div>
+  </details>
+
+  <div class="ink-colors" role="group" aria-label="水墨颜色；向上滚动偏向青铜色，向下滚动偏向玉绿色">
+    <button type="button" data-ink="black" aria-label="紫墨" aria-pressed="true" style="--ink:#51247a"></button>
+    <button type="button" data-ink="jade" aria-label="玉绿" aria-pressed="false" style="--ink:#2F6052"></button>
+    <button type="button" data-ink="bronze" aria-label="青铜" aria-pressed="false" style="--ink:#875B39"></button>
+    <button type="button" data-ink="gold" aria-label="浅金" aria-pressed="false" style="--ink:#C2A46C"></button>
+  </div>
+  <div class="controls" role="group" aria-label="音频控制">
+    <label class="file-label"><span class="wide-label">选择本地音频</span><span class="short-label">音频</span><input id="audio-file" type="file" accept=".mp3,audio/mpeg"></label>
+    <span class="file-name" id="file-name" aria-live="polite">每分钟 50 拍的舒缓节奏已就绪</span>
+    <span class="divider" aria-hidden="true"></span>
+    <button id="play" type="button">播放</button>
+    <button id="pause" type="button" disabled>暂停</button>
+    <button id="mute" type="button" aria-pressed="false">静音</button>
+    <span class="divider" aria-hidden="true"></span>
+    <button id="mic" type="button" aria-pressed="false">麦克风</button>
+    <button id="webcam" type="button" aria-pressed="false">摄像头</button>
+  </div>
+  <div class="capture-status" role="status"><span id="mic-status"></span><span id="webcam-status"></span></div>
+  <div class="xr-entry"><button id="enter-ar" type="button" disabled>进入增强现实</button><span id="xr-status" role="status">正在检查增强现实支持情况…</span></div>
+  <div id="xr-overlay" class="xr-overlay"><button id="recenter-ar" type="button">重新定位</button><button id="exit-ar" type="button">退出增强现实</button></div>
+  <audio id="audio" preload="metadata"></audio>
+  <video id="webcam-feed" autoplay playsinline muted hidden></video>
+  <script>
+/* Eight independently simulated materials. No image, texture, or flat artwork is used. */
+/* Genuine emitted particles, extracted from the procedural v3 behaviour.
+ * No raster sprites. Positions are normalized to the main ring radius.
+ * Integration: const particles=createInkParticleSystem();
+ * per frame: particles.update(state); particles.render2D(ctx,{cx,cy,radius},state);
+ * Alternative: render particles.droplets with sphere(), particles.splashes with dot().
+ * state.edgePoint(angle,siteIndex,burstIndex) returns a live ink-ring location:
+ * {x,y,z,inkLayer:'inkBlack'|'inkPurple',purple:boolean}. Legacy [x,y,z] is valid.
+ */
+function createInkParticleSystem() {
+  const TAU=Math.PI*2,clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const droplets=[],splashes=[];
+  let seed=8359123,lastTime=null,lastBeat=null,burstId=0,totalSpawned=0,pulse=0,lastOrigins=[];
+  let emittedSources={edge:0,center:0,pointer:0};
+  const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
+  const visible=(state,key)=>state.layers?.[key]!==false&&(!state.soloLayer||state.soloLayer===key);
+  const option=(state,key,field,fallback)=>Number.isFinite(Number(state.params?.[key]?.[field]))?Number(state.params[key][field]):fallback;
+  function reset(){droplets.length=splashes.length=0;seed=8359123;lastTime=null;lastBeat=null;burstId=0;totalSpawned=0;pulse=0;lastOrigins=[];emittedSources={edge:0,center:0,pointer:0};}
+  function edgePoint(angle,state,siteIndex){
+    const point=typeof state.edgePoint==='function'?state.edgePoint(angle,siteIndex,burstId+1):null;
+    if(point)return Array.isArray(point)?{x:point[0],y:point[1],z:point[2]}:{...point};
+    const r=1+.045*Math.sin(3*angle)+.032*Math.cos(5*angle);
+    return {x:Math.cos(angle)*r,y:Math.sin(angle)*r*.96};
+  }
+  function makeArcTable(state,parity){
+    const count=128,points=[],lengths=[0];let total=0;
+    for(let i=0;i<=count;i++){
+      const a=i/count*TAU,p=edgePoint(a,state,parity);points.push({a,...p});
+      if(i){const q=points[i-1];total+=Math.hypot(p.x-q.x,p.y-q.y,(p.z||0)-(q.z||0));lengths.push(total);}
+    }
+    return {points,lengths,total,parity};
+  }
+  function sampleArc(table,fraction,state,siteIndex){
+    const u=(fraction%1+1)%1,target=u*table.total;let lo=0,hi=table.lengths.length-1;
+    while(hi-lo>1){const mid=(lo+hi)>>1;if(table.lengths[mid]<=target)lo=mid;else hi=mid;}
+    const blend=(target-table.lengths[lo])/Math.max(1e-9,table.lengths[hi]-table.lengths[lo]);
+    const angle=table.points[lo].a+(table.points[hi].a-table.points[lo].a)*blend;
+    return {...edgePoint(angle,state,siteIndex),angle,siteIndex,source:'edge',arcFraction:u,arcPerimeter:table.total};
+  }
+  function emit(strength,state={}){
+    const power=clamp(Number(strength)||.55,.2,1.5),phase=random(),nextBurst=burstId+1;
+    const tables=[makeArcTable(state,0),makeArcTable(state,1)];let siteSerial=0,auxSerial=0;
+    const nextSite=parity=>{const id=siteSerial+parity;siteSerial+=2;return id;};
+    lastOrigins=[];pulse=1;
+    for(const [kind,density,baseCount,baseBurst,maxPool] of [
+      ['droplets',option(state,'droplets','count',28),28,20+Math.round(power*8),220],
+      ['splashes',option(state,'splashes','count',110),110,100+Math.round(power*12),1200]
+    ]){
+      const particles=kind==='droplets'?droplets:splashes;
+      if(density<=0){particles.length=0;continue;}
+      const inkOnly=kind==='splashes',hasPointer=!!state.pointer&&Number.isFinite(state.pointer.x)&&Number.isFinite(state.pointer.y);
+      const minimumAux=inkOnly?0:hasPointer?2:1;
+      const count=Math.max(inkOnly?2:6,Math.round(baseBurst*clamp(density/baseCount,0,4)));
+      const edgeCount=inkOnly?count:Math.min(count-minimumAux,Math.max(4,Math.round(count*.85)));
+      const perRing=[Math.ceil(edgeCount/2),Math.floor(edgeCount/2)],rings=[[],[]];
+      for(let group=0;group<2;group++)for(let i=0;i<perRing[group];i++){
+        // Each live ink curve has its own arc-length LUT. Jitter stays within
+        // eight percent of its sector; the second ring is offset by half a cell.
+        const fraction=(i+phase+group*.5+(random()*2-1)*.08)/perRing[group];
+        rings[group].push(sampleArc(tables[group],fraction,state,nextSite(group)));
+      }
+      const edges=[];for(let i=0;i<Math.max(...perRing);i++)for(let group=0;group<2;group++)if(rings[group][i])edges.push(rings[group][i]);
+      const auxiliary=[];for(let i=0;i<count-edgeCount;i++){
+        const pointer=hasPointer&&i%2===1;auxiliary.push({x:pointer?state.pointer.x:0,y:pointer?state.pointer.y:0,source:pointer?'pointer':'center',siteIndex:--auxSerial});
+      }
+      // Keep representative origins near the head without changing spatial sites.
+      const sites=inkOnly?edges:[...edges.slice(0,2),...auxiliary.slice(0,minimumAux),...edges.slice(2),...auxiliary.slice(minimumAux)];
+      for(const site of sites){
+        const isDrop=kind==='droplets',spread=clamp(option(state,'splashes','spread',1),.1,3);
+        const radialAngle=Math.atan2(site.y,site.x),cone=clamp((isDrop?.22:.32)*Math.sqrt(spread),.12,.55);
+        const direction=site.source!=='edge'?random()*TAU:radialAngle+(random()*2-1)*cone;
+        const speed=isDrop?.35+random()*.65*power:(.65+.4*power)*(.85+random()*.3);
+        const radius=isDrop?.006+Math.pow(random(),1.8)*.024:.0035+Math.pow(random(),1.4)*.0125;
+        const vx=Math.cos(direction)*speed,vy=Math.sin(direction)*speed,r0=Math.hypot(site.x,site.y);
+        const z=Number.isFinite(site.z)?site.z:.16+random()*.14;
+        const inkLayer=site.source==='edge'&&['inkBlack','inkPurple'].includes(site.inkLayer)?site.inkLayer:null;
+        const p={x:site.x,y:site.y,z,z0:z,x0:site.x,y0:site.y,inkLayer,siteIndex:site.siteIndex,arcFraction:site.arcFraction,
+          vx,vy,vx0:vx,vy0:vy,radialCosine0:r0>1e-9?(site.x*vx+site.y*vy)/(r0*speed):null,
+          radialSpeed0:r0>1e-9?(site.x*vx+site.y*vy)/r0:null,vz:.035+random()*.09,
+          r:radius,birth:Number(state.time)||0,life:0,max:isDrop?1.7+random()*1.8:.7+random()*1.4,
+          angle:direction,stretch:isDrop?1:1.15+random()*2.1,purple:inkLayer?inkLayer==='inkPurple':typeof site.purple==='boolean'?site.purple:random()>.42,
+          phase:random()*TAU,source:site.source,burst:nextBurst,kind};
+        particles.push(p);totalSpawned++;emittedSources[site.source]++;
+        lastOrigins.push({...site,z,z0:z,inkLayer,purple:p.purple,kind,burst:nextBurst});
+      }
+      while(particles.length>maxPool)particles.shift();
+    }
+    burstId=nextBurst;
+  }
+  function update(state={}){
+    const time=Number.isFinite(state.time)?state.time:Number(state.phase)||0;
+    if(lastTime!==null&&time<lastTime-1e-6)reset();
+    const dt=state.paused?0:clamp(Number.isFinite(state.dt)?state.dt:lastTime===null?0:time-lastTime,0,.1);
+    lastTime=time;
+    const beat=Number.isFinite(state.beatId)?state.beatId:Number.isFinite(state.beat)?state.beat:0;
+    if(lastBeat===null){lastBeat=beat;if(beat>0&&!state.paused)emit(Math.max(Number(state.bass)||0,Number(state.beatPower)||0,.35),state);}
+    else if(beat>lastBeat&&!state.paused){emit(Math.max(Number(state.bass)||0,Number(state.beatPower)||0,.35),state);lastBeat=beat;}
+    else if(beat<lastBeat)lastBeat=beat;
+    const movement=state.reducedMotion?.22:1,step=dt*movement;
+    pulse=Math.max(0,pulse-step*2.4);
+    if(option(state,'droplets','count',28)<=0)droplets.length=0;
+    if(option(state,'splashes','count',110)<=0)splashes.length=0;
+    for(const collection of [droplets,splashes])for(let i=collection.length-1;i>=0;i--){
+      const p=collection[i];p.life+=step;
+      const substeps=Math.max(1,Math.ceil(step/.025)),h=step/substeps;
+      for(let n=0;n<substeps;n++){
+        p.x+=p.vx*h;p.y+=p.vy*h;p.z+=p.vz*h;
+        p.vy+=.16*h;p.vz-=.065*h;
+        const drag=Math.exp(-.18*h);p.vx*=drag;p.vy*=drag;
+      }
+      p.angle=Math.atan2(p.vy,p.vx);
+      if(p.life>=p.max||Math.abs(p.x)>3.4||Math.abs(p.y)>3.4)collection.splice(i,1);
+    }
+    return {time,dt,beatId:lastBeat,pulse,alive:droplets.length+splashes.length};
+  }
+  function render2D(ctx,geometry,state={}){
+    const R=geometry.radius,cx=geometry.cx,cy=geometry.cy;
+    const palettes={black:['#4f1769','#211326'],jade:['#315844','#16251d'],bronze:['#79532f','#352719'],gold:['#888342','#37331c']};
+    const palette=palettes[state.inkKind]||palettes.black;
+    ctx.save();ctx.translate(cx,cy);ctx.scale(R,R);
+    if(visible(state,'splashes'))for(const p of splashes){
+      const fade=clamp((p.max-p.life)/.45,0,1),grow=clamp(p.life/.055,.2,1),r=p.r*grow;
+      const elongation=p.stretch*(1+Math.hypot(p.vx,p.vy)*.6);
+      ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.angle);ctx.scale(elongation,1);
+      ctx.globalAlpha=.84*fade;ctx.fillStyle=p.purple?palette[0]:palette[1];
+      ctx.beginPath();
+      // A small asymmetric liquid silhouette, not a reused texture or circle sprite.
+      for(let i=0;i<=12;i++){const a=i/12*TAU,rough=1+.12*Math.sin(a*3+p.phase+p.life*2),x=Math.cos(a)*r*rough,y=Math.sin(a)*r*rough;i?ctx.lineTo(x,y):ctx.moveTo(x,y);}
+      ctx.closePath();ctx.fill();ctx.restore();
+    }
+    if(visible(state,'droplets'))for(const p of droplets){
+      const fade=clamp((p.max-p.life)/.6,0,1),grow=clamp(p.life/.08,.22,1);
+      const size=clamp(option(state,'droplets','size',1),.1,3),r=p.r*size*grow;
+      const speed=Math.hypot(p.vx,p.vy),stretch=1+speed*.32+Math.sin(p.life*14+p.phase)*.07*Math.exp(-p.life*2);
+      ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.angle);ctx.scale(stretch,1/stretch);
+      const grad=ctx.createRadialGradient(-r*.32,-r*.36,r*.04,0,0,r);
+      grad.addColorStop(0,'rgba(255,255,255,.98)');grad.addColorStop(.18,p.purple?'#d9c7eb':'#f6f0fb');
+      grad.addColorStop(.5,p.purple?'#8f6da9':'#b5a5c0');grad.addColorStop(.77,p.purple?palette[0]:'#73657e');grad.addColorStop(1,'#24182f');
+      ctx.globalAlpha=.91*fade;ctx.fillStyle=grad;ctx.beginPath();ctx.ellipse(0,0,r,r,0,0,TAU);ctx.fill();
+      ctx.strokeStyle='rgba(255,255,255,.75)';ctx.lineWidth=r*.075;ctx.beginPath();ctx.arc(-r*.05,-r*.04,r*.82,Math.PI*1.07,Math.PI*1.61);ctx.stroke();ctx.restore();
+    }
+    ctx.restore();
+  }
+  function diagnostics(){
+    const circleCoverage=origins=>{
+      const measure=points=>{
+        const n=points.length;if(!n)return {count:0,occupiedSectors:0,sectors:24,maxAngularGapDegrees:360,coverageDegrees:0,arcGapCV:null};
+        const angles=points.map(p=>(Math.atan2(p.y,p.x)+TAU)%TAU).sort((a,b)=>a-b),angularGaps=angles.map((angle,i)=>(i+1<n?angles[i+1]:angles[0]+TAU)-angle);
+        const arc=points.map(p=>p.arcFraction).sort((a,b)=>a-b),arcGaps=arc.map((u,i)=>(i+1<n?arc[i+1]:arc[0]+1)-u);
+        const maximum=Math.max(...angularGaps)*180/Math.PI;
+        return {count:n,occupiedSectors:new Set(angles.map(a=>Math.floor(a/TAU*24))).size,sectors:24,
+          maxAngularGapDegrees:+maximum.toFixed(4),coverageDegrees:+(360-maximum).toFixed(4),
+          arcGapCV:+Math.sqrt(arcGaps.reduce((sum,gap)=>sum+(gap*n-1)**2,0)/n).toFixed(5),maximumArcGapRatio:+(Math.max(...arcGaps)*n).toFixed(5),minimumArcGapRatio:+(Math.min(...arcGaps)*n).toFixed(5)};
+      };
+      return Object.fromEntries(['inkBlack','inkPurple'].map(layer=>[layer,measure(origins.filter(p=>p.inkLayer===layer))]));
+    };
+    const representativeSamples=list=>{
+      const recent=list.filter(p=>p.burst===burstId),pool=recent.length?recent:list,picked=[];
+      const add=p=>{if(p&&!picked.includes(p))picked.push(p);};
+      for(const source of ['center','pointer'])add(pool.find(p=>p.source===source));
+      for(const layer of ['inkBlack','inkPurple'])for(const target of [0,TAU/4,TAU/2,TAU*3/4]){
+        let nearest=null,best=Infinity;for(const p of pool){if(p.source!=='edge'||p.inkLayer!==layer)continue;const a=Math.atan2(p.y0,p.x0),distance=Math.abs(Math.atan2(Math.sin(a-target),Math.cos(a-target)));if(distance<best){nearest=p;best=distance;}}add(nearest);
+      }
+      for(const p of pool){if(picked.length>=6)break;add(p);}return picked;
+    };
+    const outwardStats=list=>{
+      const edge=list.filter(p=>p.source==='edge'),birthCosines=edge.map(p=>p.radialCosine0),birthSpeeds=edge.map(p=>p.radialSpeed0);
+      const travel=edge.map(p=>Math.hypot(p.x,p.y)-Math.hypot(p.x0,p.y0));
+      return {edgeParticles:edge.length,outwardAtBirth:birthCosines.filter(c=>c>.8).length,
+        minimumBirthRadialCosine:edge.length?+Math.min(...birthCosines).toFixed(5):null,
+        minimumBirthRadialSpeed:edge.length?+Math.min(...birthSpeeds).toFixed(5):null,
+        increasedRadius:travel.filter(d=>d>1e-6).length,
+        minimumRadiusIncrease:edge.length?+Math.min(...travel).toFixed(5):null};
+    };
+    const stats=list=>({alive:list.length,edge:list.filter(p=>p.source==='edge').length,center:list.filter(p=>p.source==='center').length,pointer:list.filter(p=>p.source==='pointer').length,
+      outward:outwardStats(list),
+      inkSources:{inkBlack:list.filter(p=>p.source==='edge'&&p.inkLayer==='inkBlack').length,inkPurple:list.filter(p=>p.source==='edge'&&p.inkLayer==='inkPurple').length,unknown:list.filter(p=>p.source==='edge'&&!p.inkLayer).length},
+      sample:representativeSamples(list).map(p=>({x:+p.x.toFixed(4),y:+p.y.toFixed(4),z:+p.z.toFixed(5),x0:+p.x0.toFixed(4),y0:+p.y0.toFixed(4),z0:+p.z0.toFixed(5),inkLayer:p.inkLayer,purple:p.purple,siteIndex:p.siteIndex,burst:p.burst,vx:+p.vx.toFixed(4),vy:+p.vy.toFixed(4),vx0:+p.vx0.toFixed(4),vy0:+p.vy0.toFixed(4),
+        birthRadialCosine:p.radialCosine0===null?null:+p.radialCosine0.toFixed(5),radiusIncrease:+(Math.hypot(p.x,p.y)-Math.hypot(p.x0,p.y0)).toFixed(5),
+        birth:+p.birth.toFixed(3),life:+p.life.toFixed(3),max:+p.max.toFixed(3),source:p.source,r:+p.r.toFixed(4)}))});
+    return {kind:'procedural-ballistic-particles',usesImageSprites:false,emissionPolicy:'splashes:uniform-full-circumference-of-both-ink-rings; droplets:full-circumference-plus-center-pointer',burstId,beatId:lastBeat,totalSpawned,pulse,
+      emittedSources:{...emittedSources},edgeEmissionShare:totalSpawned?+(emittedSources.edge/totalSpawned).toFixed(5):0,
+      circumference:Object.fromEntries(['droplets','splashes'].map(kind=>[kind,circleCoverage(lastOrigins.filter(p=>p.kind===kind&&p.source==='edge'))])),
+      lastOrigins:lastOrigins.map(p=>({...p})),droplets:stats(droplets),splashes:stats(splashes)};
+  }
+  return {droplets,splashes,update,emit,render2D,reset,diagnostics};
+}
+
+/* Minimal v3 WebGL integration API. The renderer owns beat detection and time.
+ * const fluid=createFluidParticleSystem();
+ * if (beatId changed) fluid.emit(beatPower,state.params,state.burstPoint);
+ * fluid.update(secondsDt); then draw fluid.droplets using sphere(), splashes using dot().
+ * Coordinates, velocity, radius, life/max, purple, stretch and angle match v3.
+ */
+function createFluidParticleSystem(){
+  const engine=createInkParticleSystem();
+  let elapsed=0,lastParams={droplets:{count:28,size:1},splashes:{count:110,spread:1}};
+  return {
+    droplets:engine.droplets,splashes:engine.splashes,
+    emit(strength,params={},pointer=null){
+      lastParams={droplets:{count:28,size:1,...params.droplets},splashes:{count:110,spread:1,...params.splashes}};
+      engine.emit(strength,{time:elapsed,params:lastParams,pointer,edgePoint:params.edgePoint});
+    },
+    update(dt,params=null){
+      if(params)lastParams={droplets:{...lastParams.droplets,...params.droplets},splashes:{...lastParams.splashes,...params.splashes}};
+      elapsed+=Math.max(0,Number(dt)||0);return engine.update({time:elapsed,dt:Math.max(0,Number(dt)||0),params:lastParams,beatId:0});
+    },
+    reset(){elapsed=0;engine.reset();},
+    diagnostics(){return engine.diagnostics();}
+  };
+}
+
+function createKVRingRenderer() {
+  const TAU = Math.PI * 2, clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, Number(v) || 0));
+  const canvas = document.createElement('canvas');
+  const layerNames = ['inkBlack', 'inkPurple', 'water', 'filaments', 'spectrum', 'droplets', 'splashes', 'crystals'];
+  let gl = null, program = null, gpuBuffer = null, loc = {}, disposed = false;
+  let lastGeometry = { cx: 0, cy: 0, baseRadius: 1 }, lastTime = null, clock = 0, lastBeat = -1, burstPulse = 0;
+  let frame = 0, randomSeed = 8359123, failure = '', renderSignature = '';
+  let diagnostics = { version: 'independent-layers-1', textureUsed: false, layers: {} };
+  const particleSystem = createFluidParticleSystem();
+  const droplets = particleSystem.droplets, splashes = particleSystem.splashes;
+  let activeParams = {};
+  const defaults={water:{width:1,speed:1},inkBlack:{width:1,irregularity:1},inkPurple:{width:1,irregularity:1},filaments:{amplitude:1,speed:1},spectrum:{height:1,speed:1},droplets:{count:28,size:1},splashes:{count:110,spread:1},crystals:{count:5,size:1}};
+  const param=(key)=>({...defaults[key],...(activeParams[key]||{})});
+  const referenceDrops=[[784,141,17],[848,67,11],[950,46,12],[768,232,10],[1152,201,17],[1011,302,11],[914,422,12],[900,483,11],[1038,574,12],[1129,600,11],[1386,345,15],[1294,225,11],[1621,482,16],[1485,658,14],[886,722,16],[1223,863,14],[1141,815,13],[1022,793,12],[1543,340,10],[1580,329,10],[1516,217,9],[1557,183,7],[1380,36,8],[1588,549,7],[1618,572,6],[908,86,7],[754,520,7],[785,565,8]];
+  const mesh = new Float32Array(1500000); let cursor = 0;
+  const random = () => { randomSeed = (Math.imul(randomSeed, 1664525) + 1013904223) >>> 0; return randomSeed / 4294967296; };
+  const ambientDrops = Array.from({length:120},(_,i)=>{
+    const ref=referenceDrops[i%28],a=i<28?Math.atan2(ref[1]-430,ref[0]-1160):random()*TAU;
+    return {angle:a,orbit:i<28?Math.hypot(ref[0]-1160,ref[1]-430)/350:.65+random()*.8,radius:i<28?ref[2]/350:.006+random()*.028,speed:(random()*.045+.018)*(i%2?1:-1),phase:random()*TAU,z:.14,purple:i%3===0};
+  });
+  const inkFreckles = Array.from({ length: 240 }, (_, i) => ({ angle: random() * TAU, orbit: .95 + random() * .3,
+    radius: .0018 + Math.pow(random(), 3) * .019, phase: random() * TAU, side: i % 2 }));
+
+  function geometry(state) {
+    if(!state)return {...lastGeometry};
+    const w=Math.max(1,state.width),h=Math.max(1,state.height),R=Math.min(w/1335*350,(h-42)/870*350);
+    lastGeometry={cx:w*.55,cy:(h-(state.transparent?0:80))*.5,baseRadius:R/1.34};
+    return {...lastGeometry};
+  }
+
+  function compile(type, source) {
+    const shader = gl.createShader(type); gl.shaderSource(shader, source); gl.compileShader(shader);
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) { const reason = gl.getShaderInfoLog(shader); gl.deleteShader(shader); throw new Error(reason); }
+    return shader;
+  }
+  function initGL() {
+    gl = canvas.getContext('webgl', { alpha: true, antialias: true, premultipliedAlpha: true, preserveDrawingBuffer: true });
+    if (!gl) return;
+    const vertex = compile(gl.VERTEX_SHADER, `
+      attribute vec3 a_position, a_normal;
+      attribute vec2 a_uv;
+      uniform vec2 u_resolution, u_center;
+      uniform float u_radius;
+      varying vec3 v_normal, v_position;
+      varying vec2 v_uv;
+      void main() {
+        vec2 p = a_position.xy * (1.0 + a_position.z * .10);
+        p.y += a_position.z * .065;
+        vec2 pixel = u_center + p * u_radius;
+        gl_Position = vec4(pixel.x / u_resolution.x * 2.0 - 1.0, 1.0 - pixel.y / u_resolution.y * 2.0, -a_position.z * .35, 1.0);
+        v_normal = a_normal; v_position = a_position; v_uv = a_uv;
+      }
+    `);
+    const fragment = compile(gl.FRAGMENT_SHADER, `
+      precision highp float;
+      varying vec3 v_normal, v_position;
+      varying vec2 v_uv;
+      uniform vec3 u_color;
+      uniform float u_material, u_opacity, u_time, u_energy;
+      float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
+      float noise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f); return mix(mix(hash(i), hash(i+vec2(1.,0.)), f.x), mix(hash(i+vec2(0.,1.)), hash(i+vec2(1.,1.)), f.x), f.y); }
+      float fbm(vec2 p) { return noise(p)*.55 + noise(p*2.03)*.27 + noise(p*4.07)*.12 + noise(p*8.13)*.06; }
+      void main() {
+        vec3 n = normalize(v_normal); if (n.z < 0.0) n = -n;
+        vec3 col = u_color; float alpha = u_opacity;
+        if (u_material < .5) {
+          // Folded liquid surfaces reflect independently according to their live mesh normals.
+          float facing = abs(n.z), fresnel = pow(1.0-facing, 2.1);
+          float diffuse = max(0.0, dot(n, normalize(vec3(-.45,-.65,1.1))));
+          vec3 halfVector = normalize(normalize(vec3(-.55,-.8,1.5))+vec3(0.,0.,1.));
+          float glint = pow(max(0.0,dot(n,halfVector)), 64.0);
+          float rim = pow(max(0.0,1.0-abs(n.x*.75+n.y*.25+n.z*.5)), 13.0);
+          float studio = smoothstep(.35,.65,sin(n.x*7.0+n.y*5.0+n.z*3.0));
+          float darkReflection = pow(max(0.0,sin(n.x*8.0-n.y*3.0+n.z*2.0)),8.0);
+          col = mix(u_color*.38, vec3(.98,.96,1.0), .11+diffuse*.32);
+          col *= 1.0-darkReflection*.57;
+          col = mix(col, u_color*.23+vec3(.025), fresnel*.72);
+          col += vec3(.96,.94,1.0)*glint*1.38 + vec3(.38,.22,.53)*rim*.56 + studio*.035;
+          // Narrow bright menisci follow the changing physical edges of each sheet.
+          float edge = pow(abs(v_uv.y),14.0);
+          col = mix(col,vec3(.98,.97,1.),edge*.75);
+          alpha *= .76 + fresnel*.15 + darkReflection*.12 + edge*.12;
+          if (u_material > .25) {
+            // Clear ice/water is a different optical material from the dense violet sheet.
+            // Most face-on area transmits the scene; grazing folds keep a dark glass edge.
+            col = vec3(.97,.965,1.0) - vec3(.69,.68,.72)*darkReflection;
+            col = mix(col,vec3(.13,.095,.19),fresnel*.79);
+            col += vec3(.95,.97,1.0)*glint*1.12;
+            col = mix(col,vec3(1.0),edge*.78);
+            alpha = u_opacity * clamp(.075+fresnel*.66+darkReflection*.29+edge*.59,.07,.96);
+          }
+        } else if (u_material < 1.5) {
+          // Each ink strip has a stable granular pigment field, porous edges, and wet patches.
+          vec2 q = vec2(v_uv.x*95.0-u_time*.5,v_uv.y*8.0+sin(v_uv.x*24.0+u_time*.7)*.7);
+          float broad = fbm(q*.65), grain = noise(q*8.0);
+          float rough = noise(q*vec2(1.4,2.5))*.17 + noise(q*vec2(4.5,7.0))*.07;
+          float edge = 1.0-smoothstep(.62+rough,.82+rough,abs(v_uv.y));
+          float holes = 1.0 - smoothstep(.71,.84,noise(q*.83))*.9;
+          float dryFiber = smoothstep(.79,.92,noise(vec2(q.x*.65,q.y*13.0)))*smoothstep(.3,.8,abs(v_uv.y));
+          holes *= 1.0-dryFiber*.95;
+          // True partial alpha throughout the sheet, not pale paint or whole-layer opacity.
+          float violet = step(1.1,u_material);
+          float theta = v_uv.x*6.2831853 + mix(.4,2.2,violet) + u_time*mix(.039,-.052,violet);
+          float tide = .5+.5*sin(theta*2.0+mix(.15,1.15,violet)+sin(theta*3.0-u_time*.12)*.42);
+          float dilute = smoothstep(.30,.89,tide);
+          float wetEdge = smoothstep(.12,.86,abs(v_uv.y));
+          float wash = dilute*(.74+.26*wetEdge);
+          float veinCenter = .24*sin(theta*3.0+u_time*.16);
+          float vein = exp(-pow((v_uv.y-veinCenter)/.37,2.0))
+            * smoothstep(.16,.88,.5+.5*sin(theta*3.0+mix(1.9,.5,violet)));
+          float pigmentDensity = mix(.99,.10,wash) * (1.0-vein*.66);
+          alpha *= edge*holes*pigmentDensity*(.97+grain*.03);
+          col = mix(col,col*1.16, wash*.45);
+          col *= .68+broad*.38;
+          float wet = pow(max(0.,dot(n,normalize(vec3(-.4,-.6,1.)))),18.)*smoothstep(.58,.84,broad);
+          col += vec3(.49,.30,.64)*wet*.42;
+          if(alpha<.025) discard;
+        } else if (u_material < 2.5) {
+          float f = pow(1.0-abs(n.z),2.0);
+          float highlight = pow(max(0.,dot(n,normalize(vec3(-.38,-.55,.84)))),34.0);
+          float darkBand = pow(max(0.,sin(n.x*4.5+n.y*3.0+n.z*2.8)),3.0);
+          col = mix(vec3(.98,.98,1.0),u_color,.25+f*.64);
+          col *= 1.0-darkBand*.52;
+          col += highlight*.9;
+          alpha *= .6+f*.37;
+        } else if (u_material < 3.5) {
+          // Geometry, rather than a shader moving a picture, defines every wave and bar.
+          col = u_color;
+        } else {
+          float d = length(v_uv);
+          if(d>1.0) discard;
+          float ragged = 1.0-smoothstep(.7+noise(v_uv*16.0)*.2,1.0,d);
+          alpha *= ragged;
+        }
+        gl_FragColor = vec4(clamp(col,0.,1.),clamp(alpha,0.,1.));
+      }
+    `);
+    program = gl.createProgram(); gl.attachShader(program, vertex); gl.attachShader(program, fragment); gl.linkProgram(program);
+    gl.deleteShader(vertex); gl.deleteShader(fragment);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program));
+    gpuBuffer = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, gpuBuffer);
+    for (const [name, size, offset] of [['position',3,0],['normal',3,12],['uv',2,24]]) {
+      const i = gl.getAttribLocation(program,'a_'+name); gl.enableVertexAttribArray(i); gl.vertexAttribPointer(i,size,gl.FLOAT,false,32,offset);
+    }
+    for (const name of ['resolution','center','radius','color','material','opacity','time','energy']) loc[name]=gl.getUniformLocation(program,'u_'+name);
+    gl.enable(gl.BLEND); gl.blendFuncSeparate(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA,gl.ONE,gl.ONE_MINUS_SRC_ALPHA); gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL);
+    gl.disable(gl.CULL_FACE); gl.clearColor(0,0,0,0);
+  }
+  try { initGL(); } catch (error) { failure = error.message; gl = null; }
+  canvas.addEventListener('webglcontextlost', event => { event.preventDefault(); gl = null; });
+
+  function vertex(p, n, u, v) {
+    mesh[cursor++]=p[0]; mesh[cursor++]=p[1]; mesh[cursor++]=p[2];
+    mesh[cursor++]=n[0]; mesh[cursor++]=n[1]; mesh[cursor++]=n[2]; mesh[cursor++]=u; mesh[cursor++]=v;
+  }
+  const faceNormal = [0,0,1];
+  function quad(a,b,c,d,uv) {
+    vertex(a,faceNormal,uv?-1:0,-1); vertex(b,faceNormal,uv?1:1,-1); vertex(c,faceNormal,uv?-1:0,1);
+    vertex(c,faceNormal,uv?-1:0,1); vertex(b,faceNormal,uv?1:1,-1); vertex(d,faceNormal,uv?1:1,1);
+  }
+  function segment(a,b,width) {
+    const dx=b[0]-a[0],dy=b[1]-a[1],l=Math.hypot(dx,dy)||1,ex=-dy/l*width*.5,ey=dx/l*width*.5;
+    quad([a[0]+ex,a[1]+ey,a[2]],[a[0]-ex,a[1]-ey,a[2]],[b[0]+ex,b[1]+ey,b[2]],[b[0]-ex,b[1]-ey,b[2]],false);
+  }
+  function dot(x,y,z,r,stretch=1,angle=0) {
+    const ex=Math.cos(angle)*r*stretch,ey=Math.sin(angle)*r*stretch,fx=-Math.sin(angle)*r,fy=Math.cos(angle)*r;
+    quad([x-ex-fx,y-ey-fy,z],[x+ex-fx,y+ey-fy,z],[x-ex+fx,y-ey+fy,z],[x+ex+fx,y+ey+fy,z],true);
+  }
+  function flush(material, color, opacity, writeDepth=false) {
+    if(!cursor) return;
+    gl.uniform1f(loc.material,material); gl.uniform3fv(loc.color,color); gl.uniform1f(loc.opacity,opacity);
+    gl.depthMask(writeDepth); gl.bindBuffer(gl.ARRAY_BUFFER,gpuBuffer); gl.bufferData(gl.ARRAY_BUFFER,mesh.subarray(0,cursor),gl.DYNAMIC_DRAW);
+    gl.drawArrays(gl.TRIANGLES,0,cursor/8); cursor=0;
+  }
+
+  // Procedural geometry only. The caller updates activeParams before rendering.
+
+
+  function fluidParameter(layer, key, fallback = 1) {
+    const value = Number(activeParams?.[layer]?.[key]);
+    return Number.isFinite(value) ? Math.max(0, Math.min(3, value)) : fallback;
+  }
+
+  // Broad asymmetric rises and hollows give the ensemble one irregular silhouette.
+  // Every term closes at 2π; neither the base contour nor its motion uses an image.
+  function fluidContour(a) {
+    return .047 * Math.cos(a - 2.45)
+      + .034 * Math.sin(a * 2 + .5)
+      + .024 * Math.cos(a * 5 - .8)
+      + .013 * Math.sin(a * 9 + 1.35);
+  }
+
+  function ribbonPoint(a, v, def, time, bass, mid) {
+    const widthScale = fluidParameter(def.layer, 'width');
+    const irregularity = def.ink ? fluidParameter(def.layer, 'irregularity') : 1;
+    const t = time * (def.layer === 'water' ? fluidParameter('water', 'speed') : 1);
+    const theta = a + def.spin * t + def.offset;
+    const energy = Math.max(0, Math.min(1, bass));
+    const middle = Math.max(0, Math.min(1, mid));
+    // Lift quieter musical envelopes without changing any zero-audio vertex.
+    // Bass drives broad impacts; the middle band drives travelling melodic folds.
+    const lowDrive = Math.pow(energy, .72);
+    const melodyDrive = Math.pow(middle, .76);
+    const isBlackInk = def.layer === 'inkBlack';
+    const audioSafety = 1 / (1 + Math.max(0, widthScale - 1) * .65);
+
+    // A travelling crest moves around the ring while the quieter coarse outline
+    // stays shared between the sheets. It changes vertex positions, not UVs.
+    const travelling = Math.sin(a * 3 - t * def.flow + def.offset);
+    const secondary = Math.sin(a * 7 + t * .51 + def.offset * 1.7);
+    const impactWave = Math.sin(a * (isBlackInk ? 3 : 4)
+      - t * (isBlackInk ? 1.35 : -1.12) + def.offset);
+    const melodyWave = Math.sin(a * (isBlackInk ? 5 : 3)
+      + t * (isBlackInk ? .76 : 1.42) + def.offset * 1.7);
+    const waterScale = .52 + Math.min(1, def.width / .14) * .48;
+    const audioRadius = def.ink
+      ? (lowDrive * (isBlackInk ? .125 : .065) * impactWave
+        + melodyDrive * (isBlackInk ? .045 : .115) * melodyWave)
+      : waterScale * (lowDrive * .115 * travelling
+        + melodyDrive * .075 * Math.sin(a * 5 + t * 1.12 + def.offset));
+    let radius = def.radius + fluidContour(theta) * irregularity
+      + .021 * travelling * irregularity
+      + .009 * secondary * irregularity
+      + audioRadius * irregularity * audioSafety;
+
+    // Dense material has substantial width throughout the circumference, with
+    // unequal thick sectors. The former narrow gating function is deliberately absent.
+    const sector = .91 + .16 * Math.cos(theta * 2 - .9)
+      + .11 * Math.sin(theta * 3 + def.offset)
+      + .065 * Math.sin(theta * 7 + .4);
+    const audioWidth = def.ink
+      ? lowDrive * (isBlackInk ? .40 : .23) * impactWave
+        + melodyDrive * (isBlackInk ? .20 : .40) * melodyWave
+      : lowDrive * .38 * Math.sin(a * 3 - t * 1.16 + def.offset)
+        + melodyDrive * .30 * Math.sin(a * 5 + t * .94 + def.offset * .7);
+    const breathing = Math.max(.50, Math.min(1.58,
+      1 + .09 * Math.sin(a * 4 - t * .86 + def.offset)
+      + .08 * Math.sin(a * 2 + t * .53) + audioWidth * audioSafety));
+    let width = def.width * Math.max(.1, widthScale) * Math.max(.5, sector) * breathing;
+
+    if (def.ink) {
+      // Both silhouettes and folds physically evolve. Fine roughness has its
+      // own transport speed and remains visible when there is no music.
+      const edgeRoughness = Math.sin(a * 23 - t * .35 + def.offset) * .009
+        + Math.sin(a * 47 + t * .22) * .004
+        + Math.sin(a * 71 - def.offset) * .002;
+      radius += edgeRoughness * irregularity;
+      width *= Math.max(.48, 1 + irregularity * (
+        .12 * Math.sin(a * 11 - t * .42 + def.offset)
+        + .065 * Math.sin(a * 31 + t * .26)));
+      // Retain an open centre even with maximum width, roughness and music input.
+      width = Math.min(width, Math.max(.08, radius * .58));
+      const across = v * width;
+      // Ink is a broad wrinkled sheet: it rises, sinks and changes its two edges.
+      radius += across + Math.sin(v * Math.PI) * width * .15
+        * Math.sin(a * 4 - t * .61) * irregularity;
+      radius += Math.sin(v * Math.PI) * width * audioSafety
+        * (lowDrive * .18 * impactWave + melodyDrive * .16 * melodyWave);
+      const fold = .026 * Math.sin(a * 5 - t * .55 + def.offset)
+        + .014 * Math.sin(a * 11 + t * .27 + v * 2);
+      const musicFold = isBlackInk
+        ? lowDrive * .105 * Math.sin(a * 3 - t * 1.28)
+          + melodyDrive * .035 * Math.sin(a * 5 + t * .82 + v * 1.2)
+        : lowDrive * .045 * Math.sin(a * 3 + t * .91)
+          + melodyDrive * .115 * Math.sin(a * 4 + t * 1.37 + v * 1.8);
+      const z = def.z + fold * irregularity
+        + Math.sin(v * Math.PI) * width * .22 * Math.sin(a * 3 - t * .47)
+        + musicFold * audioSafety * (.45 + .55 * irregularity)
+        + Math.sin(v * Math.PI) * width * audioSafety
+          * (lowDrive * .28 * impactWave + melodyDrive * .32 * melodyWave);
+      return [Math.cos(theta) * radius + .023 * Math.sin(theta * 2),
+        Math.sin(theta) * radius * .94 + .012 * Math.cos(theta * 3), z];
+    }
+
+    // The sheet opens and curls in cross-section rather than just spinning as
+    // a flat band. Moving lobes and fold angles create changing 3D normals.
+    const twist = a * def.twists + t * def.twistSpeed + def.offset
+      + .45 * Math.sin(a * 3 - t * .7)
+      + audioSafety * (lowDrive * .82 * Math.sin(a * 3 - t * 1.18 + def.offset)
+        + melodyDrive * .54 * Math.sin(a * 5 + t * .94));
+    width = Math.min(width, Math.max(.04, radius * .50));
+    const across = v * width;
+    const bow = Math.sin(v * Math.PI) * width;
+    radius += across * Math.cos(twist)
+      + bow * (.19 + .08 * Math.sin(a * 3 - t * .81))
+      + width * .10 * Math.sin(v * Math.PI * 2 + a * 4 - t * .64);
+    let z = def.z + .083 * Math.sin(a * 2 + t * .37 + def.offset)
+      + .036 * Math.sin(a * 5 - t * .62)
+      + across * Math.sin(twist) * 1.18;
+    z += bow * (.52 + .23 * Math.sin(a * 3 - t * .74))
+      + Math.sin(a * 9 - t * .83 + v * 2.1) * (.012 + lowDrive * .045)
+      + audioSafety * waterScale * (
+        lowDrive * .095 * Math.sin(a * 3 - t * 1.12 + def.offset)
+        + melodyDrive * .075 * Math.sin(a * 5 + t * 1.06 + v * 1.3))
+      + bow * audioSafety * (lowDrive * .34 * Math.sin(a * 3 - t * .91)
+        + melodyDrive * .26 * Math.sin(a * 5 + t * 1.22));
+    return [Math.cos(theta) * radius + .023 * Math.sin(theta * 2),
+      Math.sin(theta) * radius * .94 + .012 * Math.cos(theta * 3), z];
+  }
+
+  function ribbon(def, t, bass, mid) {
+    const steps = def.ink ? 384 : 256;
+    const across = def.ink ? 6 : 12;
+    const points = [], normals = [];
+    for (let i = 0; i <= steps; i++) {
+      const a = i / steps * TAU;
+      for (let j = 0; j <= across; j++) {
+        const v = j / across * 2 - 1;
+        const p = ribbonPoint(a, v, def, t, bass, mid);
+        const pa = ribbonPoint(a + .001, v, def, t, bass, mid);
+        const pv = ribbonPoint(a, v + .003, def, t, bass, mid);
+        const u = [pa[0] - p[0], pa[1] - p[1], pa[2] - p[2]];
+        const w = [pv[0] - p[0], pv[1] - p[1], pv[2] - p[2]];
+        const n = [u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0]];
+        const length = Math.hypot(...n) || 1;
+        points.push(p); normals.push(n.map(value => value / length));
+      }
+    }
+    // Water has a sealed meniscus: top and bottom surfaces plus narrow edge
+    // walls. Increasing width also thickens its physical cross-section.
+    const thickness = def.ink ? 0 : (def.thickness || .012)
+      * Math.sqrt(Math.max(.1, fluidParameter(def.layer, 'width')));
+    const add = (i, j, side) => {
+      const k = i * (across + 1) + j, p = points[k], n = normals[k];
+      const v = j / across * 2 - 1;
+      const h = thickness * (.32 + .68 * Math.sqrt(Math.max(0, 1 - v * v)));
+      const normal = side < 0 ? [-n[0], -n[1], -n[2]] : n;
+      vertex([p[0] + n[0] * h * side, p[1] + n[1] * h * side, p[2] + n[2] * h * side], normal, i / steps, v);
+    };
+    for (let i = 0; i < steps; i++) for (let j = 0; j < across; j++) {
+      add(i, j, 1); add(i + 1, j, 1); add(i, j + 1, 1);
+      add(i, j + 1, 1); add(i + 1, j, 1); add(i + 1, j + 1, 1);
+      if (thickness) {
+        add(i, j, -1); add(i, j + 1, -1); add(i + 1, j, -1);
+        add(i, j + 1, -1); add(i + 1, j + 1, -1); add(i + 1, j, -1);
+      }
+    }
+    if (thickness) for (let i = 0; i < steps; i++) for (const j of [0, across]) {
+      add(i, j, 1); add(i, j, -1); add(i + 1, j, 1);
+      add(i + 1, j, 1); add(i, j, -1); add(i + 1, j, -1);
+    }
+  }
+
+  const waterDefinitions = [
+    {layer:'water',radius:.935,width:.215,spin:.105,offset:.1,flow:.84,twists:3,twistSpeed:-.61,z:.10,thickness:.014},
+    {layer:'water',radius:1.045,width:.142,spin:-.077,offset:2.6,flow:-.72,twists:4,twistSpeed:.49,z:.17,thickness:.011},
+    {layer:'water',radius:.735,width:.033,spin:.124,offset:1.7,flow:1.02,twists:3,twistSpeed:.64,z:.11,thickness:.006},
+    {layer:'water',radius:1.145,width:.027,spin:-.058,offset:3.4,flow:.73,twists:5,twistSpeed:-.40,z:.035,thickness:.005}
+  ];
+  const blackDefinition = {layer:'inkBlack',radius:1.012,width:.230,spin:.039,offset:.4,flow:.38,ink:true,z:-.12};
+  const purpleDefinition = {layer:'inkPurple',radius:.993,width:.205,spin:-.052,offset:2.2,flow:.51,ink:true,z:-.065};
+
+  function sphere(x,y,z,r,flatten=1) {
+    const slices=12,stacks=8;
+    function point(i,j) {
+      const a=i/slices*TAU,b=j/stacks*Math.PI,n=[Math.cos(a)*Math.sin(b),Math.sin(a)*Math.sin(b),Math.cos(b)];
+      return {p:[x+n[0]*r,y+n[1]*r*flatten,z+n[2]*r],n};
+    }
+    for(let j=0;j<stacks;j++)for(let i=0;i<slices;i++) {
+      const a=point(i,j),b=point(i+1,j),c=point(i,j+1),d=point(i+1,j+1);
+      for(const v of [a,b,c,c,b,d])vertex(v.p,v.n,0,0);
+    }
+  }
+
+  const crystalDefinitions=Array.from({length:16},(_,i)=>{const refs=[[724,550,24],[1518,143,26],[1595,390,18],[1455,739,38],[1542,651,17]],p=refs[i%5],a=i<5?Math.atan2(p[1]-430,p[0]-1160):random()*TAU;return {a,r:i<5?Math.hypot(p[0]-1160,p[1]-430)/350:1.05+random()*.35,size:(i<5?p[2]/350:.04+random()*.03),phase:i*.71,spin:i%2?.24:-.3};});
+
+  function crystal(def,t,bass) {
+    const orbit=def.a+t*.012,center=[Math.cos(orbit)*def.r,Math.sin(orbit)*def.r*.96,.24+Math.sin(t*.32+def.phase)*.08];
+    const rx=t*def.spin+def.phase,ry=t*def.spin*.7,rz=t*def.spin*.4;
+    const sx=Math.sin(rx),cx=Math.cos(rx),sy=Math.sin(ry),cy=Math.cos(ry),sz=Math.sin(rz),cz=Math.cos(rz);
+    const base=[[0,-1.3,0],[.7,-.3,.36],[.47,.71,.5],[-.3,1.1,.1],[-.7,.3,-.22],[-.6,-.6,-.4],[.2,-.1,-.6],[.02,.06,.7]];
+    const points=base.map(v=>{let x=v[0],y=v[1]*cx-v[2]*sx,z=v[1]*sx+v[2]*cx;const xx=x*cy+z*sy;z=-x*sy+z*cy;x=xx;const X=x*cz-y*sz,Y=x*sz+y*cz;
+      return[center[0]+X*def.size*(1+bass*.12),center[1]+Y*def.size*(1+bass*.12),center[2]+z*def.size];});
+    const faces=[[0,1,7],[1,2,7],[2,3,7],[3,4,7],[4,5,7],[5,0,7],[0,6,1],[1,6,2],[2,6,3],[3,6,4],[4,6,5],[5,6,0]];
+    for(const f of faces){const a=points[f[0]],b=points[f[1]],c=points[f[2]],u=[b[0]-a[0],b[1]-a[1],b[2]-a[2]],v=[c[0]-a[0],c[1]-a[1],c[2]-a[2]],n=[u[1]*v[2]-u[2]*v[1],u[2]*v[0]-u[0]*v[2],u[0]*v[1]-u[1]*v[0]],len=Math.hypot(...n)||1;
+      const normal=n.map(x=>x/len);for(const p of[a,b,c])vertex(p,normal,0,0);}
+  }
+
+  function update(state) {
+    const raw=Number.isFinite(state.time)?state.time:Number(state.phase)||0;
+    if(raw===0&&lastTime!==0){particleSystem.reset();clock=0;lastBeat=state.beatId??0;}
+    const dt=lastTime===null||state.paused?0:clamp(raw-lastTime,0,.08);lastTime=raw;
+    const movement=state.reducedMotion?.2:1;clock=raw*movement;
+    const bass=clamp(state.bass),mid=clamp(state.mid),high=clamp(state.high),beat=state.beatId??state.beat??0;
+    if(beat!==lastBeat){if(lastBeat!==-1&&!state.paused){particleSystem.emit(Math.max(bass,state.beatPower||0,.5),{...activeParams,edgePoint:(a,site,burst)=>{
+      const def=(site+burst)%2?purpleDefinition:blackDefinition;
+      const ringAngle=a-def.spin*clock-def.offset,across=.62+.12*Math.sin(a*3+clock*.4);
+      const p=ribbonPoint(ringAngle,across,def,clock,bass,mid);
+      return {x:p[0],y:p[1],z:p[2]+.006,inkLayer:def.layer,purple:def.layer==='inkPurple',ringAngle,across};
+    }},state.burstPoint);burstPulse=1;}lastBeat=beat;}
+    particleSystem.update(dt*movement,activeParams);burstPulse=Math.max(0,burstPulse-dt*2.4);
+    if(param('droplets').count===0)droplets.length=0;if(param('splashes').count===0)splashes.length=0;
+    return {t:clock,bass,mid,high,dt};
+  }
+
+  function filamentPoint(group,strand,u,t,bass,mid,high) {
+    const flow=t*param('filaments').speed,amp=param('filaments').amplitude;
+    const envelope=Math.pow(Math.max(0,Math.sin(u*Math.PI)),.68);
+    const spread=(strand-12)*.009*envelope*(1+mid*.75*Math.sin(u*5-flow*.4));
+    const fine=Math.sin(u*(12.4+high*8)+flow*.28)*(.025+mid*.065+high*.055)*envelope*amp;
+    if(group===0)return[-1.95+u*1.08,-.51+Math.sin(u*(6.1+mid*2.0)-flow*.41)*(.085+mid*.37+bass*.13)*amp+fine+spread*(.3+Math.sin(u*Math.PI)),-.18];
+    if(group===1)return[.94+u*.63,-.43+Math.sin(u*(6+mid*1.7)+flow*.36)*(.09+mid*.32+bass*.10)*amp-fine+spread*(.5+Math.sin(u*Math.PI)),.06];
+    return[-.75+u*.91,.15+u*.43+Math.sin(u*(7+mid*2.4)-flow*.43)*(.032+mid*.23+bass*.075)*amp+fine*.65+spread,.24];
+  }
+  function layerVisible(state,key){return state.layers?.[key]!==false&&(!state.soloLayer||state.soloLayer===key);}
+
+  function getPalette(state) {
+    const options={black:[.30,.075,.43],jade:[.035,.40,.28],bronze:[.45,.19,.09],gold:[.64,.40,.075]},base=options[state.inkKind]||options.black;
+    const tone=clamp(state.tone==null?.5:state.tone)-.5;
+    return base.map((x,i)=>clamp(x+tone*(i===1?.08:.14)));
+  }
+  function drawGL(state,pose,s) {
+    const width=Math.max(1,state.width),height=Math.max(1,state.height),scale=Math.min(1.5,(width<600?1100:1750)/Math.max(width,height));
+    const pw=Math.round(width*scale),ph=Math.round(height*scale);if(canvas.width!==pw||canvas.height!==ph){canvas.width=pw;canvas.height=ph;}
+    gl.viewport(0,0,pw,ph);gl.depthMask(true);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.useProgram(program);
+    gl.uniform2f(loc.resolution,width,height);gl.uniform2f(loc.center,pose.cx,pose.cy);gl.uniform1f(loc.radius,pose.baseRadius*1.34);
+    gl.uniform1f(loc.time,s.t);gl.uniform1f(loc.energy,s.bass);
+    const purple=getPalette(state),pale=purple.map((x)=>.10+x*1.1),black=[.055,.043,.072],radius=pose.baseRadius*1.34;
+    cursor=0;
+    if(layerVisible(state,'inkBlack')){
+      ribbon(blackDefinition,s.t,s.bass,s.mid);flush(1,black,1,false);
+    }
+    if(layerVisible(state,'inkPurple')){
+      ribbon(purpleDefinition,s.t,s.bass,s.mid);flush(1.2,purple,1,false);
+    }
+    if(layerVisible(state,'filaments')){
+      for(let group=0;group<3;group++)for(let strand=0;strand<25;strand++){
+        let previous=null;
+        for(let j=0;j<=88;j++){
+          const u=j/88,envelope=Math.pow(Math.max(0,Math.sin(u*Math.PI)),.68);
+          const p=filamentPoint(group,strand,u,s.t,s.bass,s.mid,s.high);
+          if(previous)segment(previous,p,(1.05+s.high*.65)/radius*envelope);previous=p;
+        }
+      }
+      flush(3,purple,.48);
+    }
+    if(layerVisible(state,'spectrum')){
+      const frequencyTime=s.t*param('spectrum').speed;
+      const data=state.frequencies||state.frequencyData||state.spectrum||state.waveform;
+      const waveInput=data===state.waveform;
+      for(let arc=0;arc<2;arc++)for(let i=0;i<65;i++){
+        const u=i/64,a=(arc===0?-2.72:.22)+u*1.34+frequencyTime*(arc===0?.013:-.017),r=.665;
+        let signal=.14+.12*Math.sin(u*19+frequencyTime*2.1)+s.mid*.45*(.3+.7*Math.pow(Math.sin(u*5+frequencyTime*.7),2))+s.high*.28;
+        if(data&&data.length){let q=data[Math.min(data.length-1,Math.floor(u*data.length*.7))];const bytes=data instanceof Uint8Array||data instanceof Uint8ClampedArray;if(bytes)q=waveInput?Math.abs(q-128)/128:q/255;signal+=Math.abs(q)*.42;}
+        const envelope=Math.pow(Math.sin(u*Math.PI),.7),length=(.014+Math.max(0,signal)*.17)*envelope*(1+s.bass*.3)*param('spectrum').height;
+        const x=arc===0?-.76+u*.79:-.12+u*.93;
+        const y=(arc===0?-.27-u*.48:.61-u*.37+Math.sin(u*Math.PI)*.10)+Math.sin(u*8+frequencyTime*.5)*.012;
+        const p=[x,y,-.05],q=[x,y-length,-.05];
+        segment(p,q,.0058);
+      }
+      flush(3,purple,.9);
+    }
+    if(layerVisible(state,'water')){
+      for(let i=0;i<waterDefinitions.length;i++){
+        ribbon(waterDefinitions[i],s.t,s.bass,s.mid);
+        const color=i===0?pale:(i===1?purple.map(x=>.42+x*.43):[.67,.65,.74]);flush(i===0?0:.4,color,i===0?.53:.82);
+      }
+    }
+    if(layerVisible(state,'droplets')&&param('droplets').count>0){
+      for(let kind=0;kind<2;kind++){
+        for(const p of ambientDrops.slice(0,param('droplets').count)){if(p.purple!==Boolean(kind))continue;const a=p.angle+s.t*p.speed,r=p.orbit+Math.sin(s.t*.37+p.phase)*.025;
+          const size=p.radius*param('droplets').size*(1+(Math.sin(s.t*.7+p.phase)-Math.sin(p.phase))*.13+s.bass*.18);sphere(Math.cos(a)*r,Math.sin(a)*r*.96,p.z+Math.sin(s.t*.4+p.phase)*.06,size);}
+        for(const p of droplets){if(p.purple!==Boolean(kind))continue;const life=Math.min(1,(p.max-p.life)*2);sphere(p.x,p.y,p.z,p.r*life*param('droplets').size,1+Math.abs(p.vy)*.35);}
+        flush(2,kind?purple:[.55,.52,.61],.97);
+      }
+    }
+    if(layerVisible(state,'crystals')){for(const def of crystalDefinitions.slice(0,param('crystals').count))crystal({...def,size:def.size*param('crystals').size},s.t,s.bass);flush(.4,[.57,.52,.65],1);}
+    if(layerVisible(state,'splashes')&&param('splashes').count>0){
+      for(let kind=0;kind<2;kind++){
+        for(const p of splashes){if(p.purple!==Boolean(kind))continue;const remaining=Math.min(1,(p.max-p.life)*2.5);dot(p.x,p.y,p.z,p.r*remaining,p.stretch,p.angle);}
+        // Tiny drifting pigment specks are always visible; beats add true ballistic sprays.
+        for(let i=0;i<param('splashes').count;i++){const a=inkFreckles[i].angle+s.t*(i%2?.012:-.018),r=1+(inkFreckles[i].orbit-1+.06)*param('splashes').spread;if(i%2!==kind)continue;
+          dot(Math.cos(a)*r,Math.sin(a)*r*.96,.22,inkFreckles[i].radius*(i%8===0?1.6:1),1.1,i);}
+        flush(4,kind?purple:black,.78);
+      }
+    }
+    gl.depthMask(true);
+    return canvas;
+  }
+
+  function drawFallback(ctx,state,pose,s) {
+    const R=pose.baseRadius*1.34,purple=getPalette(state),rgb=p=>`rgb(${p.map(x=>Math.round(x*255)).join(',')})`,ink=rgb(purple);
+    ctx.save();ctx.translate(pose.cx,pose.cy);ctx.scale(R,R);ctx.lineJoin='round';ctx.lineCap='round';
+    for(const [key,def,color] of [['inkBlack',blackDefinition,'#18111f'],['inkPurple',purpleDefinition,ink]])if(layerVisible(state,key)){
+      for(let i=0;i<240;i++){
+        const a=i/240*TAU,b=(i+1)/240*TAU,theta=a+def.offset+s.t*def.spin;
+        const tide=.5+.5*Math.sin(theta*2+(key==='inkPurple'?1.15:.15)+Math.sin(theta*3-s.t*.12)*.42);
+        const wash=clamp((tide-.30)/.59),alpha=.98-.84*wash*wash*(3-2*wash);
+        const p=ribbonPoint(a,-1,def,s.t,s.bass,s.mid),q=ribbonPoint(a,1,def,s.t,s.bass,s.mid),r=ribbonPoint(b,1,def,s.t,s.bass,s.mid),v=ribbonPoint(b,-1,def,s.t,s.bass,s.mid);
+        const gradient=ctx.createLinearGradient(p[0],p[1],q[0],q[1]);
+        gradient.addColorStop(0,'transparent');gradient.addColorStop(.18,color);gradient.addColorStop(.72,color);gradient.addColorStop(1,'transparent');
+        ctx.beginPath();ctx.moveTo(p[0],p[1]);for(const point of [q,r,v])ctx.lineTo(point[0],point[1]);ctx.closePath();ctx.fillStyle=gradient;ctx.globalAlpha=alpha;ctx.fill();
+      }
+    }
+    if(layerVisible(state,'filaments')){ctx.strokeStyle=ink;ctx.globalAlpha=.45;ctx.lineWidth=.0036;
+      for(let group=0;group<2;group++)for(let k=0;k<15;k++){ctx.beginPath();for(let i=0;i<=80;i++){const u=i/80,x=(group? .6:-1.5)+u*.95,y=-.22+Math.sin(u*7+s.t*param('filaments').speed*(group?.36:-.41))*(.08+s.mid*.36+s.bass*.12)*param('filaments').amplitude+(k-7)*.01*Math.pow(Math.sin(u*Math.PI),.68); i?ctx.lineTo(x,y):ctx.moveTo(x,y);}ctx.stroke();}}
+    if(layerVisible(state,'spectrum')){ctx.strokeStyle=ink;ctx.globalAlpha=.85;ctx.lineWidth=.0058;
+      for(let arc=0;arc<2;arc++)for(let i=0;i<65;i++){const u=i/64,a=(arc?-0.1:-2.8)+u*1.6,r=.65,data=state.frequencies,signal=data?.length?data[Math.min(data.length-1,Math.floor(u*data.length*.7))]/255:0,len=.012+Math.sin(u*Math.PI)*(.035+s.mid*.12+signal*.08+Math.sin(u*20+s.t*2*param('spectrum').speed)*.015);ctx.beginPath();ctx.moveTo(Math.cos(a)*r,Math.sin(a)*r*.96);ctx.lineTo(Math.cos(a)*(r+len*param('spectrum').height),Math.sin(a)*(r+len*param('spectrum').height)*.96);ctx.stroke();}}
+    if(layerVisible(state,'water'))for(let d=0;d<waterDefinitions.length;d++){
+      const def=waterDefinitions[d];
+      for(let i=0;i<160;i++){
+        const a=i/160*TAU,b=(i+1)/160*TAU,p=ribbonPoint(a,-1,def,s.t,s.bass,s.mid),q=ribbonPoint(a,1,def,s.t,s.bass,s.mid),r=ribbonPoint(b,1,def,s.t,s.bass,s.mid),v=ribbonPoint(b,-1,def,s.t,s.bass,s.mid);
+        const gradient=ctx.createLinearGradient(p[0],p[1],q[0],q[1]);gradient.addColorStop(0,'rgba(255,255,255,.93)');gradient.addColorStop(.18,'rgba(67,37,91,.65)');gradient.addColorStop(.38,'rgba(219,202,235,.62)');gradient.addColorStop(.72,'rgba(255,255,255,.86)');gradient.addColorStop(1,'rgba(112,94,132,.65)');
+        ctx.beginPath();ctx.moveTo(p[0],p[1]);for(const z of[q,r,v])ctx.lineTo(z[0],z[1]);ctx.closePath();ctx.globalAlpha=.95;ctx.fillStyle=gradient;ctx.fill();
+      }
+    }
+    if(layerVisible(state,'droplets')&&param('droplets').count>0){for(const p of ambientDrops.slice(0,param('droplets').count).concat(droplets)){
+      const a=(p.angle||0)+s.t*(p.speed||0),x=p.x==null?Math.cos(a)*p.orbit:p.x,y=p.y==null?Math.sin(a)*p.orbit*.96:p.y,r=(p.radius||p.r)*param('droplets').size*(p.max?Math.min(1,(p.max-p.life)*2):1);
+      const grad=ctx.createRadialGradient(x-r*.35,y-r*.4,r*.03,x,y,r);grad.addColorStop(0,'#fff');grad.addColorStop(.22,p.purple?'#b09ac4':'#f3f0fa');grad.addColorStop(.72,p.purple?ink:'#82728d');grad.addColorStop(1,'#302438');ctx.globalAlpha=.9;ctx.fillStyle=grad;ctx.beginPath();ctx.arc(x,y,r,0,TAU);ctx.fill();}}
+    if(layerVisible(state,'splashes')&&param('splashes').count>0){ctx.fillStyle=ink;for(const p of inkFreckles.slice(0,param('splashes').count).concat(splashes)){const a=(p.angle||0)+s.t*.018,x=p.x==null?Math.cos(a)*(1+(p.orbit-1)*param('splashes').spread):p.x,y=p.y==null?Math.sin(a)*(1+(p.orbit-1)*param('splashes').spread)*.96:p.y;ctx.globalAlpha=.65;ctx.beginPath();ctx.arc(x,y,p.radius||p.r,0,TAU);ctx.fill();}}
+    if(layerVisible(state,'crystals')){for(const original of crystalDefinitions.slice(0,param('crystals').count)){const def={...original,size:original.size*param('crystals').size};const a=def.a+s.t*.012,x=Math.cos(a)*def.r,y=Math.sin(a)*def.r*.96,spin=s.t*def.spin+def.phase;ctx.save();ctx.translate(x,y);ctx.rotate(spin);ctx.globalAlpha=.72;ctx.fillStyle='#b4aabd';ctx.beginPath();ctx.moveTo(0,-def.size*1.3);ctx.lineTo(def.size*.65,-def.size*.25);ctx.lineTo(def.size*.4,def.size*.75);ctx.lineTo(-def.size*.45,def.size*.9);ctx.lineTo(-def.size*.7,-def.size*.3);ctx.closePath();ctx.fill();ctx.fillStyle='#f8f6fb';ctx.beginPath();ctx.moveTo(0,-def.size*1.3);ctx.lineTo(def.size*.1,0);ctx.lineTo(-def.size*.7,-def.size*.3);ctx.closePath();ctx.fill();ctx.restore();}}
+    ctx.restore();
+  }
+
+  function render(ctx,state) {
+    if(disposed||!ctx)return;
+    activeParams=Object.fromEntries(Object.keys(defaults).map(k=>[k,{...defaults[k],...(state.params?.[k]||{})}]));
+    const pose=geometry(state),s=update(state);frame++;
+    const signature=JSON.stringify([state.width,state.height,state.transparent,s.t,s.bass,s.mid,s.high,state.beatId,activeParams,state.layers,state.soloLayer,state.inkKind,state.tone]);
+    if(gl&&signature===renderSignature){ctx.drawImage(canvas,0,0,canvas.width,canvas.height,0,0,state.width,state.height);return;}
+    renderSignature=signature;
+    if(gl&&!gl.isContextLost()){const surface=drawGL(state,pose,s);ctx.drawImage(surface,0,0,surface.width,surface.height,0,0,state.width,state.height);}
+    else drawFallback(ctx,state,pose,s);
+    diagnostics={version:'fluid-geometry-8',textureUsed:false,frame,time:s.t,mode:gl?'webgl':'canvas2d',fallbackReason:failure,
+      params:activeParams,wholeImageBackdrop:false,physics:particleSystem.diagnostics(),
+      audioShapeSamples:Object.fromEntries([waterDefinitions[0],blackDefinition,purpleDefinition].map(def=>[def.layer,[0,.7,1.6,2.9,4.2,5.5].map(a=>({a,inner:ribbonPoint(a,-1,def,s.t,s.bass,s.mid),outer:ribbonPoint(a,1,def,s.t,s.bass,s.mid)}))])),
+      shapeSamples:[0,.7,1.6,2.9,4.2,5.5].map(a=>({a,inner:ribbonPoint(a,-1,waterDefinitions[0],s.t,s.bass,s.mid),outer:ribbonPoint(a,1,waterDefinitions[0],s.t,s.bass,s.mid)})),
+      audio:{bass:s.bass,mid:s.mid,high:s.high,beatId:lastBeat},particleCount:droplets.length+splashes.length,
+      layers:{
+        inkBlack:{visible:layerVisible(state,'inkBlack'),objects:76,rotation:s.t*.024,shapePhase:s.t*.2,audioBand:'bass'},
+        inkPurple:{visible:layerVisible(state,'inkPurple'),objects:76,rotation:-s.t*.034,shapePhase:s.t*.34,audioBand:'mid'},
+        water:{visible:layerVisible(state,'water'),objects:4,rotations:waterDefinitions.map(d=>s.t*d.spin+d.offset),twists:waterDefinitions.map(d=>s.t*d.twistSpeed),vertices:4*192*8*6},
+        filaments:{visible:layerVisible(state,'filaments'),objects:75,phase:s.t*.41*param('filaments').speed,amplitude:(.085+s.mid*.37+s.bass*.13)*param('filaments').amplitude,samples:[.15,.3,.5,.7,.85].map(u=>filamentPoint(0,12,u,s.t,s.bass,s.mid,s.high))},
+        spectrum:{visible:layerVisible(state,'spectrum'),objects:130,phase:s.t*2.1,response:s.mid+s.high},
+        droplets:{visible:layerVisible(state,'droplets'),objects:param('droplets').count+droplets.length,emitted:droplets.length,minRadius:.007,maxRadius:.043,positions:droplets.slice(0,3).map(p=>[p.x,p.y,p.z])},
+        crystals:{visible:layerVisible(state,'crystals'),objects:param('crystals').count,rotations:crystalDefinitions.slice(0,param('crystals').count).map(d=>s.t*d.spin+d.phase),facets:72},
+        splashes:{visible:layerVisible(state,'splashes'),objects:param('splashes').count+splashes.length,emitted:splashes.length,directions:splashes.slice(0,5).map(p=>p.angle),pulse:burstPulse}
+      }};
+  }
+  return {get ready(){return !disposed;},get mode(){return gl&&!gl.isContextLost()?'webgl':'canvas2d';},get diagnostics(){return diagnostics;},geometry,render,
+    dispose(){disposed=true;if(gl){if(gpuBuffer)gl.deleteBuffer(gpuBuffer);if(program)gl.deleteProgram(program);}gl=null;droplets.length=0;splashes.length=0;canvas.width=canvas.height=1;}};
+}
+
+
+    const canvas = document.querySelector('canvas');
+    const displayCtx = canvas.getContext('2d');
+    const paperCanvas = document.createElement('canvas'); // Offscreen ink layer; only one canvas is visible.
+    const ctx = paperCanvas.getContext('2d');
+    const audio = document.querySelector('#audio');
+    const fileInput = document.querySelector('#audio-file');
+    const fileName = document.querySelector('#file-name');
+    const playButton = document.querySelector('#play');
+    const pauseButton = document.querySelector('#pause');
+    const muteButton = document.querySelector('#mute');
+    const micButton = document.querySelector('#mic');
+    const micStatus = document.querySelector('#mic-status');
+    const webcamButton = document.querySelector('#webcam');
+    const webcamStatus = document.querySelector('#webcam-status');
+    const webcamFeed = document.querySelector('#webcam-feed');
+    const xrButton = document.querySelector('#enter-ar');
+    const xrStatus = document.querySelector('#xr-status');
+    const xrOverlay = document.querySelector('#xr-overlay');
+    const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+    const tau = Math.PI * 2;
+    const steps = 240;
+    const kvRingRenderer = createKVRingRenderer();
+    canvas.dataset.visualVersion = 'kv-fluid-8';
+    let width, height, baseRadius, phase = 0, lastTime = 0, fresh = true, bass = 0;
+    let bassAverage = 0, hitThreshold = 0, previousBass = 0, musicPeak = 0, cooldownFrames = 0;
+    let pointerX = 0, pointerY = 0, driftX = 0, driftY = 0;
+    let cameraX = 0, cameraInfluence = 0, lastCameraSample = 0, previousCameraFrame;
+    const cameraCanvas = document.createElement('canvas');
+    cameraCanvas.width = 96;
+    cameraCanvas.height = 72;
+    const cameraCtx = cameraCanvas.getContext('2d', { willReadFrequently: true });
+    const brushMarks = [];
+    const inkEndpoints = {
+      black: [[44, 24, 83], [98, 32, 111]],
+      jade: [[35, 103, 91], [121, 75, 53]],
+      bronze: [[63, 100, 92], [157, 91, 51]],
+      gold: [[143, 176, 151], [204, 164, 103]]
+    };
+    const swatches = [...document.querySelectorAll('.ink-colors button')];
+    let currentInkKind = 'black', tone = 0.5, targetTone = 0.5;
+    const inkPalette = {};
+    let paintingPointer = null, lastBrushX = 0, lastBrushY = 0;
+    let audioUrl, audioContext, analyser;
+    const frequencies = new Uint8Array(128), waveform = new Uint8Array(256);
+    waveform.fill(128);
+    let mid = 0, high = 0, sceneTime = 0, beatId = 0, beatPower = 0, burstPoint = null;
+    let soundMuted = false, mediaOutputGain;
+    const bandPeaks = { bass: .01, mid: .01, high: .01 };
+    let lastDiagnosticTime = 0;
+    let synthContext, synthMaster, synthInput, synthAnalyser, synthTimer, synthPlaying = false, nextPulseTime = 0;
+    let pulseIndex = 0, lastSynthPulse = -Infinity;
+    let micContext, micStream, micAnalyser, micSamples;
+    let voiceLevel = 0, micBaseline = 0, previousMicRms = 0, micAge = 0, micCooldown = 0;
+    let webcamStream;
+    let xrSession = null, xrReferenceSpace = null, xrGl = null, xrProgram = null;
+    let xrTexture = null, xrBuffer = null, xrModelMatrix = null, xrTextureWidth = 0, xrTextureHeight = 0;
+    let xrLastError = '';
+    let windowFrameId = null;
+    const accentTimes = [];
+    audio.volume = 0.3;
+    // The opening composition always uses these values; edits are session-only.
+    const layerDefaults = Object.freeze({
+      water: Object.freeze({ width: 1, speed: 1 }),
+      inkBlack: Object.freeze({ width: 1, irregularity: 1 }),
+      inkPurple: Object.freeze({ width: 1, irregularity: 1 }),
+      filaments: Object.freeze({ amplitude: 1, speed: 1 }),
+      spectrum: Object.freeze({ height: 1, speed: 1 }),
+      droplets: Object.freeze({ count: 28, size: 1 }),
+      splashes: Object.freeze({ count: 110, spread: 1 }),
+      crystals: Object.freeze({ count: 5, size: 1 })
+    });
+    const layerParams = Object.fromEntries(Object.entries(layerDefaults).map(([key, values]) => [key, { ...values }]));
+    const layerInputs = [...document.querySelectorAll('[data-layer]')];
+    const layerButtons = [...document.querySelectorAll('[data-solo]')];
+    const layerParameterInputs = [...document.querySelectorAll('[data-param-layer]')];
+    const layerEditButtons = [...document.querySelectorAll('[data-edit-layer]')];
+    const layerState = Object.fromEntries(layerInputs.map(input => [input.dataset.layer, true]));
+    const pauseLayerButton = document.querySelector('#pause-layer-scene');
+    let soloLayer = null;
+    let scenePaused = true;
+
+    function formatLayerParameter(input, value) {
+      if (input.dataset.format === 'count') return String(Math.round(value));
+      if (input.dataset.format === 'speed') return String(Number(value.toFixed(2))) + '×';
+      return Math.round(value * 100) + '%';
+    }
+    function syncLayerParameter(input) {
+      const value = layerParams[input.dataset.paramLayer][input.dataset.param];
+      input.value = value;
+      const text = formatLayerParameter(input, value);
+      document.getElementById('value-' + input.dataset.paramLayer + '-' + input.dataset.param).textContent = text;
+      input.setAttribute('aria-valuetext', input.dataset.format === 'count' ? text + ' 个' : text);
+    }
+    function syncLayerControls() {
+      layerInputs.forEach(input => { input.checked = layerState[input.dataset.layer]; });
+      layerButtons.forEach(button => button.setAttribute('aria-pressed', String(soloLayer === button.dataset.solo)));
+      canvas.dataset.visibleLayers = Object.keys(layerState).filter(key => layerState[key]).join(',');
+      canvas.dataset.scenePaused = String(scenePaused);
+      pauseLayerButton.textContent = scenePaused ? '开始动效' : '暂停动效';
+      pauseLayerButton.setAttribute('aria-pressed', String(scenePaused));
+    }
+
+    function setScenePaused(value) {
+      scenePaused = !!value;
+      syncLayerControls();
+    }
+
+    layerInputs.forEach(input => input.addEventListener('change', () => {
+      layerState[input.dataset.layer] = input.checked;
+      soloLayer = null;
+      syncLayerControls();
+    }));
+    layerButtons.forEach(button => button.addEventListener('click', () => {
+      const key = button.dataset.solo;
+      soloLayer = soloLayer === key ? null : key;
+      Object.keys(layerState).forEach(name => { layerState[name] = !soloLayer || name === key; });
+      syncLayerControls();
+    }));
+    // Only one editor opens at a time to keep the artwork visible on smaller screens.
+    layerEditButtons.forEach(button => button.addEventListener('click', () => {
+      const shouldOpen = button.getAttribute('aria-expanded') !== 'true';
+      layerEditButtons.forEach(other => {
+        const isOpen = other === button && shouldOpen;
+        other.setAttribute('aria-expanded', String(isOpen));
+        document.getElementById(other.getAttribute('aria-controls')).hidden = !isOpen;
+      });
+    }));
+    layerParameterInputs.forEach(input => input.addEventListener('input', () => {
+      let value = Number(input.value);
+      if (!Number.isFinite(value)) return;
+      value = Math.max(Number(input.min), Math.min(Number(input.max), value));
+      if (input.dataset.format === 'count') value = Math.round(value);
+      layerParams[input.dataset.paramLayer][input.dataset.param] = value;
+      syncLayerParameter(input);
+    }));
+    document.querySelector('#show-all-layers').addEventListener('click', () => {
+      soloLayer = null; Object.keys(layerState).forEach(key => { layerState[key] = true; }); syncLayerControls();
+    });
+    document.querySelector('#hide-all-layers').addEventListener('click', () => {
+      soloLayer = null; Object.keys(layerState).forEach(key => { layerState[key] = false; }); syncLayerControls();
+    });
+    pauseLayerButton.addEventListener('click', () => {
+      setScenePaused(!scenePaused);
+    });
+    document.querySelector('#reset-layer-scene').addEventListener('click', () => {
+      Object.entries(layerDefaults).forEach(([key, values]) => { Object.assign(layerParams[key], values); layerState[key] = true; });
+      soloLayer = null;
+      scenePaused = true;
+      layerParameterInputs.forEach(syncLayerParameter);
+      syncLayerControls();
+      // Renderer listens here to rewind motion and clear any transient splashes.
+      document.dispatchEvent(new CustomEvent('reset-layer-scene'));
+    });
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Escape') document.querySelector('#layer-panel').open = false;
+    });
+    layerParameterInputs.forEach(syncLayerParameter);
+    syncLayerControls();
+
+
+    function updateInkPalette() {
+      for (const [kind, [cool, warm]] of Object.entries(inkEndpoints)) {
+        const color = cool.map((value, i) => Math.round(value + (warm[i] - value) * tone));
+        inkPalette[kind] = color;
+        const swatch = swatches.find(button => button.dataset.ink === kind);
+        swatch.style.setProperty('--ink', `rgb(${color.join(',')})`);
+      }
+    }
+    updateInkPalette();
+    addEventListener('wheel', event => {
+      if (event.target.closest?.('.layer-panel')) return;
+      event.preventDefault();
+      targetTone = Math.max(0, Math.min(1, targetTone - Math.sign(event.deltaY) * 0.055));
+    }, { passive: false });
+
+    swatches.forEach(button => {
+      button.addEventListener('click', () => {
+        currentInkKind = button.dataset.ink;
+        swatches.forEach(swatch =>
+          swatch.setAttribute('aria-pressed', String(swatch === button)));
+      });
+    });
+
+    function addBrushDot(x, y) {
+      const jitter = Math.min(1.5, baseRadius * 0.009);
+      brushMarks.push({
+        x: x + (Math.random() - 0.5) * jitter * 2,
+        y: y + (Math.random() - 0.5) * jitter * 2,
+        size: Math.max(1.5, baseRadius * (0.008 + Math.random() * 0.008)),
+        kind: currentInkKind,
+        seed: Math.random() * tau,
+        age: 0
+      });
+      if (brushMarks.length > 1200) brushMarks.splice(0, brushMarks.length - 1200);
+    }
+
+    function paintTo(x, y) {
+      const dx = x - lastBrushX;
+      const dy = y - lastBrushY;
+      const count = Math.max(1, Math.ceil(Math.hypot(dx, dy) / Math.max(2, baseRadius * 0.018)));
+      for (let i = 1; i <= count; i++) addBrushDot(lastBrushX + dx * i / count, lastBrushY + dy * i / count);
+      lastBrushX = x;
+      lastBrushY = y;
+    }
+
+    canvas.addEventListener('pointerdown', event => {
+      if (event.button !== 0 || paintingPointer !== null) return;
+      paintingPointer = event.pointerId;
+      lastBrushX = event.clientX;
+      lastBrushY = event.clientY;
+      addBrushDot(lastBrushX, lastBrushY);
+      canvas.setPointerCapture(event.pointerId);
+    });
+    canvas.addEventListener('pointermove', event => {
+      if (event.pointerId !== paintingPointer) return;
+      if (event.pointerType === 'mouse' && !(event.buttons & 1)) { paintingPointer = null; return; }
+      paintTo(event.clientX, event.clientY);
+    });
+    function stopPainting(event) {
+      if (event.pointerId !== paintingPointer) return;
+      paintingPointer = null;
+      if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+    }
+    canvas.addEventListener('pointerup', stopPainting);
+    canvas.addEventListener('pointercancel', stopPainting);
+
+    function visualGeometry() {
+      return kvRingRenderer.geometry({ width, height, driftX, driftY,
+        reducedMotion: reducedMotion.matches, transparent: !!xrSession });
+    }
+
+    function warpPoint(x, y) { return [x, y]; }
+
+    function triggerAccent(source, inkPower = 0, point = null) {
+      const now = performance.now();
+      while (accentTimes.length && now - accentTimes[0] >= 1000) accentTimes.shift();
+      if (accentTimes.length >= 3) return;
+      accentTimes.push(now);
+      beatId++; burstPoint = point;
+      beatPower = Math.min(1.5, Math.max(.3, inkPower || 1));
+    }
+
+    function stopMic() {
+      micAnalyser = micSamples = undefined;
+      if (micStream) {
+        micStream.getTracks().forEach(track => track.stop());
+        micStream = undefined;
+      }
+      if (micContext) {
+        micContext.close().catch(() => {});
+        micContext = undefined;
+      }
+      voiceLevel = micBaseline = previousMicRms = micAge = micCooldown = 0;
+      micButton.setAttribute('aria-pressed', 'false');
+      micButton.disabled = false;
+    }
+
+    micButton.addEventListener('click', async () => {
+      if (micStream) {
+        stopMic();
+        micStatus.textContent = '';
+        return;
+      }
+      const local = location.hostname === 'localhost' || location.hostname === '127.0.0.1'
+        || location.hostname === '::1' || location.hostname === '[::1]';
+      if (location.protocol !== 'https:' && !(location.protocol === 'http:' && local)) {
+        micStatus.textContent = '麦克风需要本地服务或 HTTPS';
+        return;
+      }
+      if (!navigator.mediaDevices?.getUserMedia) {
+        micStatus.textContent = '此浏览器无法使用麦克风';
+        return;
+      }
+      micButton.disabled = true;
+      micStatus.textContent = '正在请求麦克风权限…';
+      try {
+        micContext = new AudioContext();
+        await micContext.resume();
+        micStream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: false, autoGainControl: false }
+        });
+        micAnalyser = micContext.createAnalyser();
+        micAnalyser.fftSize = 1024;
+        micContext.createMediaStreamSource(micStream).connect(micAnalyser);
+        micSamples = new Uint8Array(micAnalyser.fftSize);
+        micStream.getAudioTracks()[0]?.addEventListener('ended', () => {
+          stopMic();
+          micStatus.textContent = '麦克风已断开';
+        });
+        micButton.setAttribute('aria-pressed', 'true');
+        micStatus.textContent = '麦克风已开启';
+      } catch {
+        stopMic();
+        micStatus.textContent = '未获得麦克风权限';
+      } finally {
+        micButton.disabled = false;
+      }
+    });
+
+    function stopWebcam() {
+      webcamFeed.pause();
+      webcamFeed.srcObject = null;
+      if (webcamStream) {
+        webcamStream.getTracks().forEach(track => track.stop());
+        webcamStream = undefined;
+      }
+      previousCameraFrame = undefined;
+      cameraInfluence = cameraX = 0;
+      webcamButton.setAttribute('aria-pressed', 'false');
+      webcamButton.disabled = false;
+    }
+
+    webcamButton.addEventListener('click', async () => {
+      if (webcamStream) {
+        stopWebcam();
+        webcamStatus.textContent = '';
+        return;
+      }
+      const local = location.hostname === 'localhost' || location.hostname === '127.0.0.1'
+        || location.hostname === '::1' || location.hostname === '[::1]';
+      if (location.protocol !== 'https:' && !(location.protocol === 'http:' && local)) {
+        webcamStatus.textContent = '摄像头需要本地服务或 HTTPS';
+        return;
+      }
+      if (!navigator.mediaDevices?.getUserMedia) {
+        webcamStatus.textContent = '此浏览器无法使用摄像头';
+        return;
+      }
+      webcamButton.disabled = true;
+      webcamStatus.textContent = '正在请求摄像头权限…';
+      try {
+        webcamStream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 320 }, height: { ideal: 240 }, frameRate: { ideal: 15, max: 15 }, facingMode: 'user' },
+          audio: false
+        });
+        webcamFeed.srcObject = webcamStream;
+        await webcamFeed.play();
+        webcamStream.getVideoTracks()[0]?.addEventListener('ended', () => {
+          stopWebcam();
+          webcamStatus.textContent = '摄像头已断开';
+        });
+        webcamButton.setAttribute('aria-pressed', 'true');
+        webcamStatus.textContent = '摄像头已开启';
+      } catch {
+        stopWebcam();
+        webcamStatus.textContent = '未获得摄像头权限';
+      } finally {
+        webcamButton.disabled = false;
+      }
+    });
+
+    function sampleWebcam(now) {
+      if (!webcamStream || webcamFeed.readyState < 2 || now - lastCameraSample < 100) return;
+      lastCameraSample = now;
+      // Mirror the camera so moving right moves the ink right.
+      cameraCtx.setTransform(-1, 0, 0, 1, 96, 0);
+      cameraCtx.drawImage(webcamFeed, 0, 0, 96, 72);
+      cameraCtx.setTransform(1, 0, 0, 1, 0, 0);
+      const pixels = cameraCtx.getImageData(0, 0, 96, 72).data;
+      const frame = new Uint8Array(96 * 72);
+      let motion = 0, horizontal = 0;
+      for (let y = 2; y < 70; y += 2) {
+        for (let x = 2; x < 94; x += 2) {
+          const index = y * 96 + x;
+          const pixel = index * 4;
+          const light = (pixels[pixel] * 3 + pixels[pixel + 1] * 4 + pixels[pixel + 2]) >> 3;
+          frame[index] = light;
+          if (!previousCameraFrame) continue;
+          const change = Math.abs(light - previousCameraFrame[index]) - 24;
+          if (change > 0) {
+            motion += change;
+            horizontal += change * x;
+          }
+        }
+      }
+      previousCameraFrame = frame;
+      if (motion > 450) {
+        cameraX = Math.max(-1, Math.min(1, horizontal / motion / 48 - 1));
+        cameraInfluence = Math.max(0.3, Math.min(1, motion / 2400));
+      }
+    }
+
+    function updateMic(dt) {
+      if (!micAnalyser) return;
+      micAnalyser.getByteTimeDomainData(micSamples);
+      let sum = 0;
+      for (const sample of micSamples) {
+        const amplitude = (sample - 128) / 128;
+        sum += amplitude * amplitude;
+      }
+      const rms = Math.sqrt(sum / micSamples.length);
+      micAge += dt;
+      micCooldown = Math.max(0, micCooldown - dt);
+      const threshold = Math.max(0.075, micBaseline * 2.4);
+      const rise = Math.max(0.045, micBaseline * 0.9);
+      if (micAge > 0.4 && micCooldown === 0 && rms > threshold
+          && rms - previousMicRms > rise) {
+        triggerAccent('click', 2);
+        micCooldown = 0.55;
+      }
+      micBaseline += (rms - micBaseline) * (1 - Math.exp(-dt / (rms > micBaseline ? 1.8 : 0.7)));
+      previousMicRms = rms;
+      const target = Math.max(0, Math.min(1, (rms - 0.008) * 8));
+      voiceLevel += (target - voiceLevel) * (1 - Math.exp(-dt / (target > voiceLevel ? 0.075 : 0.28)));
+    }
+
+    function drawVoiceCore() {
+      if (voiceLevel < 0.003) return;
+      const { cx, cy } = visualGeometry();
+      const energy = voiceLevel * (reducedMotion.matches ? 0.4 : 1);
+      const radius = baseRadius * (0.2 + energy * 0.52);
+      const core = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+      core.addColorStop(0, `rgba(103, 47, 145, ${energy * 0.2})`);
+      core.addColorStop(1, 'rgba(103, 47, 145, 0)');
+      ctx.fillStyle = core;
+      ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
+    }
+
+    function syncPlaybackButtons() {
+      const playing = synthPlaying || (audio.hasAttribute('src') && !audio.paused);
+      playButton.disabled = playing;
+      pauseButton.disabled = !playing;
+    }
+
+    function synthVoice(frequency, start, duration, peak, attack) {
+      const oscillator = synthContext.createOscillator();
+      const envelope = synthContext.createGain();
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(frequency, start);
+      envelope.gain.setValueAtTime(0.0001, start);
+      envelope.gain.exponentialRampToValueAtTime(peak, start + attack);
+      envelope.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+      oscillator.connect(envelope).connect(synthInput);
+      oscillator.start(start);
+      oscillator.stop(start + duration + 0.02);
+      oscillator.onended = () => { oscillator.disconnect(); envelope.disconnect(); };
+    }
+
+    function scheduleSynth() {
+      if (!synthPlaying || !synthContext) return;
+      const notes = [220, 293.66, 261.63, 329.63, 392, 261.63]; // A-minor pentatonic.
+      const now = synthContext.currentTime;
+      while (nextPulseTime < now + 0.14) {
+        const start = Math.max(nextPulseTime, now + 0.015);
+        synthVoice(55, start, 0.85, 0.13, 0.045);
+        if (pulseIndex % 4 === 0) {
+          synthVoice(notes[(pulseIndex / 4) % notes.length], start + 0.13, 4.35, 0.035, 0.7);
+        }
+        lastSynthPulse = start;
+        pulseIndex++;
+        nextPulseTime = start + 60 / 50;
+      }
+    }
+
+    async function startSynth() {
+      try {
+        synthContext = new AudioContext();
+        await synthContext.resume();
+        synthMaster = synthContext.createGain();
+        synthInput = synthContext.createGain();
+        synthAnalyser = synthContext.createAnalyser();
+        synthAnalyser.fftSize = 256;
+        synthAnalyser.smoothingTimeConstant = .4;
+        synthInput.connect(synthAnalyser).connect(synthMaster);
+        synthMaster.gain.value = soundMuted ? 0 : 0.3;
+        synthMaster.connect(synthContext.destination);
+        synthPlaying = true;
+        pulseIndex = 0;
+        nextPulseTime = synthContext.currentTime + 0.05;
+        scheduleSynth();
+        synthTimer = setInterval(scheduleSynth, 100);
+        fileName.textContent = '正在播放每分钟 50 拍的舒缓节奏';
+      } catch {
+        stopSynth();
+        fileName.textContent = '音频暂不可用';
+      }
+      syncPlaybackButtons();
+    }
+
+    function stopSynth() {
+      synthPlaying = false;
+      clearInterval(synthTimer);
+      synthTimer = undefined;
+      if (synthContext) {
+        const closingContext = synthContext;
+        if (synthMaster) synthMaster.gain.setTargetAtTime(0, closingContext.currentTime, 0.025);
+        synthContext = synthMaster = synthInput = synthAnalyser = undefined;
+        setTimeout(() => closingContext.close().catch(() => {}), 150);
+      }
+      lastSynthPulse = -Infinity;
+      syncPlaybackButtons();
+    }
+
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+      if (!/\.mp3$/i.test(file.name) && file.type !== 'audio/mpeg') {
+        fileName.textContent = '请选择 MP3 音频文件';
+        fileInput.value = '';
+        return;
+      }
+      stopSynth();
+      audio.pause();
+      if (audioUrl) URL.revokeObjectURL(audioUrl);
+      audioUrl = URL.createObjectURL(file);
+      audio.src = audioUrl;
+      audio.load();
+      bass = mid = high = bassAverage = hitThreshold = previousBass = musicPeak = cooldownFrames = 0;
+      bandPeaks.bass = bandPeaks.mid = bandPeaks.high = .01;
+      fileName.textContent = file.name;
+      fileName.title = file.name;
+      syncPlaybackButtons();
+      fileInput.value = '';
+    });
+
+    playButton.addEventListener('click', async () => {
+      if (!audio.hasAttribute('src')) {
+        playButton.disabled = true;
+        await startSynth();
+        if (synthPlaying) setScenePaused(false);
+        return;
+      }
+      try {
+        if (!audioContext) {
+          audioContext = new AudioContext();
+          analyser = audioContext.createAnalyser();
+          analyser.fftSize = 256;
+          analyser.smoothingTimeConstant = 0.4;
+          audioContext.createMediaElementSource(audio).connect(analyser);
+          mediaOutputGain = audioContext.createGain();
+          mediaOutputGain.gain.value = soundMuted ? 0 : 1;
+          analyser.connect(mediaOutputGain).connect(audioContext.destination);
+        }
+        await audioContext.resume();
+        await audio.play();
+        setScenePaused(false);
+      } catch {
+        fileName.textContent = '无法播放此 MP3 音频文件';
+      }
+    });
+    pauseButton.addEventListener('click', () => {
+      if (synthPlaying) {
+        stopSynth();
+        fileName.textContent = '每分钟 50 拍的舒缓节奏已暂停';
+      } else audio.pause();
+    });
+    muteButton.addEventListener('click', () => {
+      soundMuted = !soundMuted;
+      muteButton.setAttribute('aria-pressed', String(soundMuted));
+      if (mediaOutputGain && audioContext) mediaOutputGain.gain.setTargetAtTime(soundMuted ? 0 : 1, audioContext.currentTime, .04);
+      if (synthMaster && synthContext) {
+        synthMaster.gain.setTargetAtTime(soundMuted ? 0 : 0.3, synthContext.currentTime, 0.04);
+      }
+    });
+    audio.addEventListener('play', syncPlaybackButtons);
+    audio.addEventListener('pause', syncPlaybackButtons);
+    audio.addEventListener('ended', syncPlaybackButtons);
+    addEventListener('beforeunload', () => {
+      if (audioUrl) URL.revokeObjectURL(audioUrl);
+      stopSynth();
+      stopMic();
+      stopWebcam();
+      kvRingRenderer.dispose();
+    });
+
+    function resize() {
+      width = innerWidth;
+      height = innerHeight;
+      // Keep the animated canvas small enough to upload as an AR texture each frame.
+      const dpr = xrSession ? Math.min(1, 1280 / Math.max(width, height)) : Math.min(devicePixelRatio || 1, 2);
+      canvas.width = Math.round(width * dpr);
+      canvas.height = Math.round(height * dpr);
+      paperCanvas.width = canvas.width;
+      paperCanvas.height = canvas.height;
+      displayCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (!xrSession) {
+        ctx.fillStyle = '#FCFBFD';
+        ctx.fillRect(0, 0, width, height);
+      }
+      baseRadius = visualGeometry().baseRadius;
+      fresh = true;
+    }
+
+    addEventListener('pointermove', event => {
+      pointerX = Math.max(-1, Math.min(1, (event.clientX - width / 2) / (width / 2)));
+      pointerY = Math.max(-1, Math.min(1, (event.clientY - height / 2) / (height / 2)));
+    });
+    canvas.addEventListener('pointerdown', event => {
+      setScenePaused(false);
+      const g = kvRingRenderer.geometry({width,height,transparent:!!xrSession}), r = g.baseRadius * 1.34;
+      const bounds = canvas.getBoundingClientRect();
+      triggerAccent('click', 1, {x:(event.clientX-bounds.left-g.cx)/r,y:(event.clientY-bounds.top-g.cy)/r});
+    });
+    document.addEventListener('pointerleave', () => { pointerX = pointerY = 0; });
+
+    document.addEventListener('reset-layer-scene', () => {
+      sceneTime = phase = beatId = beatPower = 0;
+      burstPoint = null;
+      brushMarks.length = 0;
+      currentInkKind = 'black'; tone = targetTone = .5;
+      swatches.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.ink === 'black')));
+      updateInkPalette();
+    });
+    // Independent audio bands; FFT 256 is intentionally kept lightweight.
+    function readBand(analyserNode, context, fromHz, toHz, name, dt) {
+      const binHz = context.sampleRate / analyserNode.fftSize;
+      const first = Math.max(1, Math.ceil(fromHz / binHz));
+      const last = Math.min(frequencies.length - 1, Math.ceil(toHz / binHz) - 1);
+      let total = 0, count = 0;
+      for (let i = first; i <= last; i++) {
+        // Byte FFT values are logarithmic dB; convert before averaging energy.
+        const db = analyserNode.minDecibels + frequencies[i] / 255 * (analyserNode.maxDecibels - analyserNode.minDecibels);
+        total += Math.pow(10, db / 10); count++;
+      }
+      const raw = count ? Math.sqrt(total / count) : 0;
+      bandPeaks[name] = Math.max(.004, raw, bandPeaks[name] * Math.exp(-dt / 6));
+      return { raw, value: Math.min(1, Math.max(0, raw - .0002) / Math.max(.006, bandPeaks[name] * 1.2)) };
+    }
+
+    function draw(now) {
+      const dt = lastTime ? Math.min((now - lastTime) / 1000, .05) : 0;
+      if (!scenePaused) sceneTime += dt;
+      updateMic(dt);
+      cameraInfluence *= Math.exp(-dt / 1.1);
+      sampleWebcam(now);
+      if (Math.abs(targetTone - tone) > .0001) {
+        tone += (targetTone - tone) * (1 - Math.exp(-dt / .25));
+        updateInkPalette();
+      }
+      let bassTarget = 0, midTarget = 0, highTarget = 0, beatEnergy = 0;
+      const activeAnalyser = synthPlaying ? synthAnalyser : (!audio.paused ? analyser : null);
+      const activeContext = synthPlaying ? synthContext : audioContext;
+      if (activeAnalyser && activeContext) {
+        activeAnalyser.getByteFrequencyData(frequencies);
+        activeAnalyser.getByteTimeDomainData(waveform);
+        const low = readBand(activeAnalyser, activeContext, 40, 420, 'bass', dt);
+        const body = readBand(activeAnalyser, activeContext, 420, 2500, 'mid', dt);
+        const air = readBand(activeAnalyser, activeContext, 2500, 10000, 'high', dt);
+        bassTarget = low.value; midTarget = body.value; highTarget = air.value;
+        beatEnergy = Math.max(low.raw, body.raw * .45) * 24;
+      } else { frequencies.fill(0); waveform.fill(128); }
+      bass += (bassTarget - bass) * (1 - Math.exp(-dt / (bassTarget > bass ? .07 : .35)));
+      mid += (midTarget - mid) * (1 - Math.exp(-dt / (midTarget > mid ? .09 : .4)));
+      high += (highTarget - high) * (1 - Math.exp(-dt / (highTarget > high ? .04 : .2)));
+      bassAverage += (beatEnergy - bassAverage) * (1 - Math.exp(-dt / 1.2));
+      hitThreshold = Math.max(bassAverage * 1.12, hitThreshold * Math.exp(-dt / .55));
+      if (cooldownFrames > 0) cooldownFrames--;
+      if (activeAnalyser && cooldownFrames === 0 && beatEnergy > .018 && beatEnergy > hitThreshold
+          && beatEnergy - previousBass > Math.max(.005, bassAverage * .035)) {
+        triggerAccent('beat', Math.min(1.5, .55 + bassTarget));
+        hitThreshold = beatEnergy * 1.35; cooldownFrames = 8;
+      }
+      previousBass = beatEnergy;
+      phase += dt * (reducedMotion.matches ? .15 : 1);
+      lastTime = now;
+      const follow = 1 - Math.exp(-dt / .33);
+      driftX += (pointerX * (1 - cameraInfluence) + cameraX * cameraInfluence - driftX) * follow;
+      driftY += (pointerY - driftY) * follow;
+      ctx.clearRect(0, 0, width, height);
+      if (!xrSession) { ctx.fillStyle = '#FCFBFD'; ctx.fillRect(0, 0, width, height); }
+      kvRingRenderer.render(ctx, { width, height, phase, time: sceneTime, dt: scenePaused ? 0 : dt,
+        bass: scenePaused ? 0 : Math.min(1, bass + voiceLevel * .6), mid: scenePaused ? 0 : mid, high: scenePaused ? 0 : high, beatId, beatPower,
+        frequencies, waveform, layers: layerState, soloLayer, params: layerParams, paused: scenePaused, burstPoint,
+        driftX, driftY, reducedMotion: reducedMotion.matches,
+        transparent: !!xrSession, inkKind: currentInkKind, tone });
+      if (kvRingRenderer.ready) {
+        canvas.dataset.material = 'ready';
+        canvas.dataset.renderer = kvRingRenderer.mode;
+      }
+      if (now - lastDiagnosticTime > 500) {
+        canvas.dataset.layerDiagnostics = JSON.stringify(kvRingRenderer.diagnostics || {});
+        canvas.dataset.audioBands = JSON.stringify({ bass:+bass.toFixed(3), mid:+mid.toFixed(3), high:+high.toFixed(3), beatId });
+        lastDiagnosticTime = now;
+      }
+      // Brush dots drift while wet, spread into the fibres, then dry away.
+      for (let i = brushMarks.length - 1; i >= 0; i--) {
+        const mark = brushMarks[i];
+        mark.age += dt;
+        if (mark.age >= 2.4) { brushMarks.splice(i, 1); continue; }
+        const soak = 1 - Math.exp(-mark.age * 2.2);
+        const fade = Math.pow(1 - mark.age / 2.4, 1.2);
+        const wobble = (1 - soak) * (reducedMotion.matches ? 0.12 : 0.8);
+        const [x, y] = warpPoint(mark.x + Math.sin(mark.age * 3 + mark.seed) * wobble,
+          mark.y + Math.cos(mark.age * 2.5 + mark.seed) * wobble);
+        const size = mark.size * (1 + soak * 0.75);
+        const [r, g, b] = inkPalette[mark.kind];
+        ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${0.2 * fade})`;
+        ctx.beginPath();
+        ctx.arc(x, y, size * 1.55, 0, tau);
+        ctx.fill();
+        ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${0.7 * fade})`;
+        ctx.beginPath();
+        ctx.arc(x, y, size * 0.8, 0, tau);
+        ctx.fill();
+      }
+
+      if (xrSession) displayCtx.clearRect(0, 0, width, height);
+      displayCtx.drawImage(paperCanvas, 0, 0, width, height);
+      fresh = false;
+      if (!xrSession) windowFrameId = requestAnimationFrame(draw);
+    }
+
+
+    // WebXR requires a WebGL layer. The existing 2D animation is used as a
+    // transparent texture on a world-fixed quad; each XRView gets its own pose.
+    function multiplyMatrices(a, b) {
+      const out = new Float32Array(16);
+      for (let column = 0; column < 4; column++) {
+        for (let row = 0; row < 4; row++) {
+          out[column * 4 + row] = a[row] * b[column * 4]
+            + a[4 + row] * b[column * 4 + 1]
+            + a[8 + row] * b[column * 4 + 2]
+            + a[12 + row] * b[column * 4 + 3];
+        }
+      }
+      return out;
+    }
+
+    function makeXRShader(gl, type, source) {
+      const shader = gl.createShader(type);
+      gl.shaderSource(shader, source);
+      gl.compileShader(shader);
+      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        const message = gl.getShaderInfoLog(shader);
+        gl.deleteShader(shader);
+        throw new Error(message || '增强现实着色器编译失败');
+      }
+      return shader;
+    }
+
+    function prepareXRGraphics(gl) {
+      const vertexShader = makeXRShader(gl, gl.VERTEX_SHADER, `
+        attribute vec2 aPosition;
+        attribute vec2 aUv;
+        uniform mat4 uMvp;
+        varying vec2 vUv;
+        void main() {
+          vUv = aUv;
+          gl_Position = uMvp * vec4(aPosition, 0.0, 1.0);
+        }
+      `);
+      const fragmentShader = makeXRShader(gl, gl.FRAGMENT_SHADER, `
+        precision mediump float;
+        uniform sampler2D uTexture;
+        uniform vec2 uCrop;
+        varying vec2 vUv;
+        void main() {
+          vec4 ink = texture2D(uTexture, vec2(0.5) + (vUv - vec2(0.5)) * uCrop);
+          // Preserve the KV purple and transparent highlights in AR.
+          gl_FragColor = vec4(ink.rgb, ink.a);
+        }
+      `);
+      xrProgram = gl.createProgram();
+      gl.attachShader(xrProgram, vertexShader);
+      gl.attachShader(xrProgram, fragmentShader);
+      gl.linkProgram(xrProgram);
+      gl.deleteShader(vertexShader);
+      gl.deleteShader(fragmentShader);
+      if (!gl.getProgramParameter(xrProgram, gl.LINK_STATUS)) {
+        throw new Error(gl.getProgramInfoLog(xrProgram) || '增强现实图形程序连接失败');
+      }
+      xrBuffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, xrBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+        -0.47, -0.47, 0, 0,   0.47, -0.47, 1, 0,   -0.47, 0.47, 0, 1,
+         0.47, -0.47, 1, 0,   0.47,  0.47, 1, 1,   -0.47, 0.47, 0, 1
+      ]), gl.STATIC_DRAW);
+      xrTexture = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, xrTexture);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+      gl.useProgram(xrProgram);
+      gl.uniform1i(gl.getUniformLocation(xrProgram, 'uTexture'), 0);
+      gl.enable(gl.BLEND);
+      gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+      gl.disable(gl.DEPTH_TEST);
+    }
+
+    function releaseXRGraphics() {
+      if (xrGl) {
+        if (xrTexture) xrGl.deleteTexture(xrTexture);
+        if (xrBuffer) xrGl.deleteBuffer(xrBuffer);
+        if (xrProgram) xrGl.deleteProgram(xrProgram);
+      }
+      xrGl = xrTexture = xrBuffer = xrProgram = null;
+      xrTextureWidth = xrTextureHeight = 0;
+      xrModelMatrix = null;
+    }
+
+    function onXRFrame(now, frame) {
+      const session = frame.session;
+      if (session !== xrSession) return;
+      session.requestAnimationFrame(onXRFrame);
+      draw(now);
+      const pose = frame.getViewerPose(xrReferenceSpace);
+      if (!pose || !xrGl) return;
+      if (!xrModelMatrix) {
+        const forward = new Float32Array([
+          1, 0, 0, 0,  0, 1, 0, 0,  0, 0, 1, 0,  0, 0, -1.35, 1
+        ]);
+        // Fix the ring in space at the point the user was facing on entry.
+        xrModelMatrix = multiplyMatrices(pose.transform.matrix, forward);
+      }
+      const gl = xrGl;
+      const layer = session.renderState.baseLayer;
+      gl.bindFramebuffer(gl.FRAMEBUFFER, layer.framebuffer);
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+      gl.useProgram(xrProgram);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, xrTexture);
+      if (xrTextureWidth !== canvas.width || xrTextureHeight !== canvas.height) {
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+        xrTextureWidth = canvas.width;
+        xrTextureHeight = canvas.height;
+      } else {
+        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+      }
+      const crop = gl.getUniformLocation(xrProgram, 'uCrop');
+      gl.uniform2f(crop, Math.min(1, canvas.height / canvas.width), Math.min(1, canvas.width / canvas.height));
+      gl.bindBuffer(gl.ARRAY_BUFFER, xrBuffer);
+      const position = gl.getAttribLocation(xrProgram, 'aPosition');
+      const uv = gl.getAttribLocation(xrProgram, 'aUv');
+      gl.enableVertexAttribArray(position);
+      gl.enableVertexAttribArray(uv);
+      gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 16, 0);
+      gl.vertexAttribPointer(uv, 2, gl.FLOAT, false, 16, 8);
+      const mvp = gl.getUniformLocation(xrProgram, 'uMvp');
+      for (const view of pose.views) {
+        const viewport = layer.getViewport(view);
+        if (!viewport) continue;
+        gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
+        const viewModel = multiplyMatrices(view.transform.inverse.matrix, xrModelMatrix);
+        gl.uniformMatrix4fv(mvp, false, multiplyMatrices(view.projectionMatrix, viewModel));
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+      }
+    }
+
+    async function onXRSessionEnd() {
+      xrSession = xrReferenceSpace = null;
+      xrOverlay.classList.remove('active');
+      document.body.classList.remove('in-ar');
+      releaseXRGraphics();
+      resize();
+      lastTime = 0;
+      if (windowFrameId !== null) cancelAnimationFrame(windowFrameId);
+      windowFrameId = requestAnimationFrame(draw);
+      await checkARSupport();
+      if (xrLastError) {
+        xrStatus.textContent = xrLastError;
+        xrLastError = '';
+      }
+    }
+
+    async function checkARSupport() {
+      xrButton.disabled = true;
+      if (!isSecureContext) {
+        xrStatus.textContent = '增强现实需要 HTTPS 或本地服务。';
+      } else if (!navigator.xr || !navigator.xr.isSessionSupported) {
+        xrStatus.textContent = '此浏览器未提供 WebXR 增强现实功能。';
+      } else {
+        try {
+          const supported = await navigator.xr.isSessionSupported('immersive-ar');
+          if (supported && !xrSession) {
+            xrButton.disabled = false;
+            xrStatus.textContent = '进入增强现实前，请先选择音乐。';
+          } else if (!xrSession) {
+            xrStatus.textContent = '此浏览器或设备无法使用沉浸式增强现实。';
+          }
+        } catch (error) {
+          xrStatus.textContent = `增强现实支持检查失败： ${error.name || '未知错误'}`;
+        }
+      }
+    }
+
+    async function enterAR() {
+      if (xrSession || !navigator.xr) return;
+      try {
+        // Request the session inside the click handler to preserve user activation.
+        const session = await navigator.xr.requestSession('immersive-ar', {
+          requiredFeatures: ['local'],
+          optionalFeatures: ['dom-overlay'],
+          domOverlay: { root: xrOverlay }
+        });
+        xrSession = session;
+        session.addEventListener('end', onXRSessionEnd, { once: true });
+        session.addEventListener('select', () => triggerAccent('click', 1));
+        if (windowFrameId !== null) cancelAnimationFrame(windowFrameId);
+        windowFrameId = null;
+        const gl = document.createElement('canvas').getContext('webgl', { alpha: true, antialias: true });
+        if (!gl || !gl.makeXRCompatible) throw new Error('无法使用兼容 WebXR 的 WebGL 图形环境');
+        xrGl = gl;
+        await gl.makeXRCompatible();
+        if (xrSession !== session) return;
+        prepareXRGraphics(gl);
+        session.updateRenderState({ baseLayer: new XRWebGLLayer(session, gl) });
+        xrReferenceSpace = await session.requestReferenceSpace('local');
+        if (xrSession !== session) return;
+        xrOverlay.classList.toggle('active', session.domOverlayState?.type === 'screen');
+        document.body.classList.add('in-ar');
+        xrButton.disabled = true;
+        xrStatus.textContent = '增强现实已开启。使用系统返回操作退出。';
+        resize();
+        lastTime = 0;
+        session.requestAnimationFrame(onXRFrame);
+      } catch (error) {
+        xrLastError = `无法进入增强现实： ${error.message && /[\u3400-\u9fff]/.test(error.message) ? error.message : error.name || '未知错误'}`;
+        xrStatus.textContent = xrLastError;
+        if (xrSession) {
+          try { await xrSession.end(); } catch (_) { await onXRSessionEnd(); }
+        } else {
+          await checkARSupport();
+          xrStatus.textContent = xrLastError;
+          xrLastError = '';
+        }
+      }
+    }
+
+    xrButton.addEventListener('click', enterAR);
+    document.querySelector('#exit-ar').addEventListener('click', () => xrSession?.end());
+    document.querySelector('#recenter-ar').addEventListener('click', () => { xrModelMatrix = null; });
+    if (navigator.xr?.addEventListener) navigator.xr.addEventListener('devicechange', checkARSupport);
+    checkARSupport();
+    addEventListener('resize', resize);
+    resize();
+    windowFrameId = requestAnimationFrame(draw);
+  </script>
+</body>
+</html>

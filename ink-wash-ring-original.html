@@ -1,0 +1,1237 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>水墨圆环</title>
+  <script>if (new URLSearchParams(location.search).has('embed')) document.documentElement.classList.add('embedded-preview');</script>
+  <style>
+    /* One warm paper field, one centered ink mark, quiet controls. */
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #FAF6F0; }
+    canvas { display: block; width: 100vw; height: 100vh; touch-action: none; }
+    .ink-colors {
+      position: fixed;
+      left: 50%;
+      bottom: calc(clamp(18px, 4vh, 42px) + 64px);
+      transform: translateX(-50%);
+      display: flex;
+      gap: 2px;
+      padding: 5px 7px;
+      border: 1px solid rgba(30, 27, 25, .13);
+      border-radius: 999px;
+      background: rgba(250, 246, 240, .9);
+      box-shadow: 0 4px 20px rgba(30, 27, 25, .04);
+    }
+    .ink-colors button {
+      display: grid;
+      place-items: center;
+      width: 44px;
+      height: 44px;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      background: transparent;
+      cursor: pointer;
+    }
+    .ink-colors button::before {
+      content: '';
+      display: block;
+      width: 22px;
+      height: 22px;
+      margin: auto;
+      border: 1px solid rgba(30, 27, 25, .22);
+      border-radius: 50%;
+      background: var(--ink);
+    }
+    .ink-colors button[aria-pressed="true"]::before { outline: 1px solid #292623; outline-offset: 3px; }
+    .ink-colors button:focus-visible { outline: 2px solid #292623; outline-offset: 1px; }
+    .controls {
+      position: fixed;
+      left: 50%;
+      bottom: clamp(18px, 4vh, 42px);
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      max-width: calc(100vw - 24px);
+      padding: 7px;
+      border: 1px solid rgba(30, 27, 25, .18);
+      border-radius: 999px;
+      background: rgba(250, 246, 240, .9);
+      box-shadow: 0 5px 24px rgba(30, 27, 25, .06);
+      color: #292623;
+      font: 12px/1.2 system-ui, sans-serif;
+      white-space: nowrap;
+    }
+    .controls button, .file-label {
+      box-sizing: border-box;
+      min-height: 34px;
+      padding: 8px 12px;
+      border: 1px solid transparent;
+      border-radius: 999px;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      cursor: pointer;
+    }
+    .controls button:hover:not(:disabled), .file-label:hover, .controls button[aria-pressed="true"] {
+      border-color: rgba(30, 27, 25, .22);
+      background: rgba(30, 27, 25, .06);
+    }
+    .controls button:focus-visible, .file-label:focus-within { outline: 2px solid #292623; outline-offset: 2px; }
+    .controls button:disabled { opacity: .45; cursor: default; }
+    .file-label { border-color: rgba(30, 27, 25, .22); }
+    .file-label input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+    .short-label { display: none; }
+    .file-name { max-width: min(20vw, 150px); overflow: hidden; text-overflow: ellipsis; color: #77716b; }
+    .divider { width: 1px; height: 18px; background: rgba(30, 27, 25, .15); }
+    .capture-status {
+      position: fixed;
+      left: 50%;
+      bottom: calc(clamp(18px, 4vh, 42px) + 126px);
+      transform: translateX(-50%);
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 6px;
+      max-width: calc(100vw - 24px);
+    }
+    .capture-status span:not(:empty) {
+      padding: 7px 12px;
+      border-radius: 999px;
+      background: rgba(250, 246, 240, .95);
+      color: #6d6258;
+      font: 12px/1.3 system-ui, sans-serif;
+      text-align: center;
+    }
+    .xr-entry {
+      position: fixed;
+      top: 18px;
+      right: 18px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      max-width: min(390px, calc(100vw - 36px));
+      color: #292623;
+      font: 12px/1.35 system-ui, sans-serif;
+    }
+    .xr-entry button, .xr-overlay button {
+      flex: none;
+      padding: 9px 13px;
+      border: 1px solid rgba(30, 27, 25, .2);
+      border-radius: 999px;
+      background: rgba(250, 246, 240, .93);
+      color: #292623;
+      font: inherit;
+      cursor: pointer;
+    }
+    .xr-entry button:disabled { opacity: .5; cursor: default; }
+    .xr-entry button:focus-visible, .xr-overlay button:focus-visible { outline: 2px solid #292623; outline-offset: 2px; }
+    .xr-entry span { max-width: 240px; }
+    .xr-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      align-items: flex-start;
+      justify-content: flex-end;
+      gap: 8px;
+      padding: 18px;
+      box-sizing: border-box;
+    }
+    .xr-overlay.active { display: flex; }
+    .xr-overlay button { pointer-events: auto; }
+    .embedded-preview .xr-entry { display: none; }
+    @media (max-width: 540px) {
+      .controls { gap: 2px; }
+      .controls button, .file-label { padding-inline: 5px; }
+      .wide-label { display: none; }
+      .short-label { display: inline; }
+      .file-name { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <canvas aria-label="宣纸上的三重动态水墨圆环；拖动即可绘画" role="img"></canvas>
+  <div class="ink-colors" role="group" aria-label="水墨颜色；向上滚动偏向青铜色，向下滚动偏向玉绿色">
+    <button type="button" data-ink="black" aria-label="墨黑" aria-pressed="true" style="--ink:#191716"></button>
+    <button type="button" data-ink="jade" aria-label="玉绿" aria-pressed="false" style="--ink:#2F6052"></button>
+    <button type="button" data-ink="bronze" aria-label="青铜" aria-pressed="false" style="--ink:#875B39"></button>
+    <button type="button" data-ink="gold" aria-label="浅金" aria-pressed="false" style="--ink:#C2A46C"></button>
+  </div>
+  <div class="controls" role="group" aria-label="音频控制">
+    <label class="file-label"><span class="wide-label">选择本地音频</span><span class="short-label">音频</span><input id="audio-file" type="file" accept=".mp3,audio/mpeg"></label>
+    <span class="file-name" id="file-name" aria-live="polite">每分钟 50 拍的舒缓节奏已就绪</span>
+    <span class="divider" aria-hidden="true"></span>
+    <button id="play" type="button">播放</button>
+    <button id="pause" type="button" disabled>暂停</button>
+    <button id="mute" type="button" aria-pressed="false">静音</button>
+    <span class="divider" aria-hidden="true"></span>
+    <button id="mic" type="button" aria-pressed="false">麦克风</button>
+    <button id="webcam" type="button" aria-pressed="false">摄像头</button>
+  </div>
+  <div class="capture-status" role="status"><span id="mic-status"></span><span id="webcam-status"></span></div>
+  <div class="xr-entry"><button id="enter-ar" type="button" disabled>进入增强现实</button><span id="xr-status" role="status">正在检查增强现实支持情况…</span></div>
+  <div id="xr-overlay" class="xr-overlay"><button id="recenter-ar" type="button">重新定位</button><button id="exit-ar" type="button">退出增强现实</button></div>
+  <audio id="audio" preload="metadata"></audio>
+  <video id="webcam-feed" autoplay playsinline muted hidden></video>
+  <script>
+    const canvas = document.querySelector('canvas');
+    const displayCtx = canvas.getContext('2d');
+    const paperCanvas = document.createElement('canvas'); // Offscreen ink layer; only one canvas is visible.
+    const ctx = paperCanvas.getContext('2d');
+    const audio = document.querySelector('#audio');
+    const fileInput = document.querySelector('#audio-file');
+    const fileName = document.querySelector('#file-name');
+    const playButton = document.querySelector('#play');
+    const pauseButton = document.querySelector('#pause');
+    const muteButton = document.querySelector('#mute');
+    const micButton = document.querySelector('#mic');
+    const micStatus = document.querySelector('#mic-status');
+    const webcamButton = document.querySelector('#webcam');
+    const webcamStatus = document.querySelector('#webcam-status');
+    const webcamFeed = document.querySelector('#webcam-feed');
+    const xrButton = document.querySelector('#enter-ar');
+    const xrStatus = document.querySelector('#xr-status');
+    const xrOverlay = document.querySelector('#xr-overlay');
+    const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
+    const tau = Math.PI * 2;
+    const steps = 240;
+    const rings = [
+      { scale: 1.34, opacity: 0.22, refresh: 0.12, width: 0.12, bleed: 0.05, blur: 2.4, wash: 6, parallax: 0.06, wobble: 1.25, bass: 0.5, seed: 0.8 },
+      { scale: 1, opacity: 0.83, refresh: 0.18, width: 0.1, bleed: 0.18, blur: 0.5, wash: 3.2, parallax: 0.14, wobble: 1, bass: 1, seed: 0 },
+      { scale: 0.66, opacity: 0.53, refresh: 0.15, width: 0.055, bleed: 0.04, blur: 0.2, wash: 1.2, parallax: 0.26, wobble: 0.55, bass: 0.65, seed: 1.5 }
+    ];
+    let width, height, baseRadius, phase = 0, lastTime = 0, fresh = true, bass = 0;
+    let bassAverage = 0, hitThreshold = 0, previousBass = 0, musicPeak = 0, cooldownFrames = 0;
+    let pointerX = 0, pointerY = 0, driftX = 0, driftY = 0;
+    let cameraX = 0, cameraInfluence = 0, lastCameraSample = 0, previousCameraFrame;
+    const cameraCanvas = document.createElement('canvas');
+    cameraCanvas.width = 96;
+    cameraCanvas.height = 72;
+    const cameraCtx = cameraCanvas.getContext('2d', { willReadFrequently: true });
+    const droplets = [];
+    const shockwaves = [];
+    const brushMarks = [];
+    const inkEndpoints = {
+      black: [[20, 45, 52], [58, 39, 24]],
+      jade: [[35, 103, 91], [121, 75, 53]],
+      bronze: [[63, 100, 92], [157, 91, 51]],
+      gold: [[143, 176, 151], [204, 164, 103]]
+    };
+    const swatches = [...document.querySelectorAll('.ink-colors button')];
+    let currentInkKind = 'black', tone = 0.5, targetTone = 0.5;
+    const inkPalette = {};
+    let paintingPointer = null, lastBrushX = 0, lastBrushY = 0;
+    let audioUrl, audioContext, analyser, frequencies;
+    let synthContext, synthMaster, synthTimer, synthPlaying = false, nextPulseTime = 0;
+    let pulseIndex = 0, lastSynthPulse = -Infinity;
+    let micContext, micStream, micAnalyser, micSamples;
+    let voiceLevel = 0, micBaseline = 0, previousMicRms = 0, micAge = 0, micCooldown = 0;
+    let webcamStream;
+    let xrSession = null, xrReferenceSpace = null, xrGl = null, xrProgram = null;
+    let xrTexture = null, xrBuffer = null, xrModelMatrix = null, xrTextureWidth = 0, xrTextureHeight = 0;
+    let xrLastError = '';
+    let windowFrameId = null;
+    const accentTimes = [];
+    audio.volume = 0.3;
+
+    function updateInkPalette() {
+      for (const [kind, [cool, warm]] of Object.entries(inkEndpoints)) {
+        const color = cool.map((value, i) => Math.round(value + (warm[i] - value) * tone));
+        inkPalette[kind] = color;
+        const swatch = swatches.find(button => button.dataset.ink === kind);
+        swatch.style.setProperty('--ink', `rgb(${color.join(',')})`);
+      }
+    }
+    updateInkPalette();
+    addEventListener('wheel', event => {
+      event.preventDefault();
+      targetTone = Math.max(0, Math.min(1, targetTone - Math.sign(event.deltaY) * 0.055));
+    }, { passive: false });
+
+    swatches.forEach(button => {
+      button.addEventListener('click', () => {
+        currentInkKind = button.dataset.ink;
+        swatches.forEach(swatch =>
+          swatch.setAttribute('aria-pressed', String(swatch === button)));
+      });
+    });
+
+    function addBrushDot(x, y) {
+      const jitter = Math.min(1.5, baseRadius * 0.009);
+      brushMarks.push({
+        x: x + (Math.random() - 0.5) * jitter * 2,
+        y: y + (Math.random() - 0.5) * jitter * 2,
+        size: Math.max(1.5, baseRadius * (0.008 + Math.random() * 0.008)),
+        kind: currentInkKind,
+        seed: Math.random() * tau,
+        age: 0
+      });
+      if (brushMarks.length > 1200) brushMarks.splice(0, brushMarks.length - 1200);
+    }
+
+    function paintTo(x, y) {
+      const dx = x - lastBrushX;
+      const dy = y - lastBrushY;
+      const count = Math.max(1, Math.ceil(Math.hypot(dx, dy) / Math.max(2, baseRadius * 0.018)));
+      for (let i = 1; i <= count; i++) addBrushDot(lastBrushX + dx * i / count, lastBrushY + dy * i / count);
+      lastBrushX = x;
+      lastBrushY = y;
+    }
+
+    canvas.addEventListener('pointerdown', event => {
+      if (event.button !== 0 || paintingPointer !== null) return;
+      paintingPointer = event.pointerId;
+      lastBrushX = event.clientX;
+      lastBrushY = event.clientY;
+      addBrushDot(lastBrushX, lastBrushY);
+      canvas.setPointerCapture(event.pointerId);
+    });
+    canvas.addEventListener('pointermove', event => {
+      if (event.pointerId !== paintingPointer) return;
+      if (event.pointerType === 'mouse' && !(event.buttons & 1)) { paintingPointer = null; return; }
+      paintTo(event.clientX, event.clientY);
+    });
+    function stopPainting(event) {
+      if (event.pointerId !== paintingPointer) return;
+      paintingPointer = null;
+      if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+    }
+    canvas.addEventListener('pointerup', stopPainting);
+    canvas.addEventListener('pointercancel', stopPainting);
+
+    function ringPose(ring, motion, bassMotion) {
+      const radius = baseRadius * ring.scale * (1 + motion * 0.019 * Math.sin(phase * 0.72 + ring.seed)
+        + bassMotion * 0.085 * ring.bass);
+      const depth = ring.parallax * (reducedMotion.matches ? 0.2 : 1);
+      return {
+        radius,
+        cx: width / 2 + driftX * baseRadius * depth,
+        cy: height / 2 + driftY * baseRadius * depth
+      };
+    }
+
+    function ringEdgeRadius(ring, radius, angle, side, motion, bassMotion, atPhase) {
+      const outline = radius + radius * ring.wobble * (0.008 * Math.sin(3 * angle + 0.5 + ring.seed + motion * atPhase * 0.23)
+        + 0.005 * Math.sin(7 * angle - 0.8 - ring.seed - motion * atPhase * 0.16)
+        + 0.002 * Math.sin(13 * angle + 1.4 + motion * atPhase * 0.34));
+      const thickness = radius * ring.width * (1 + bassMotion * 0.8 * ring.bass)
+        * (0.86 + 0.1 * Math.sin(2 * angle + 0.7 + ring.seed) + 0.04 * Math.sin(5 * angle - 0.4));
+      const fibre = radius * ring.wobble * (0.002 * Math.sin(17 * angle + side + motion * atPhase * 0.21)
+        + 0.001 * Math.sin(31 * angle - side - motion * atPhase * 0.27));
+      return outline + side * thickness / 2 + fibre;
+    }
+
+    function spawnShockwave(source = 'beat') {
+      const motion = reducedMotion.matches ? 0.12 : 1;
+      const bassMotion = bass * (reducedMotion.matches ? 0.18 : 1);
+      rings.forEach((ring, index) => {
+        const { radius, cx, cy } = ringPose(ring, motion, bassMotion);
+        shockwaves.push({
+          age: 0,
+          life: reducedMotion.matches ? 1.8 : [1.5, 0.95, 0.95][index],
+          radius: radius * (1 + ring.width * 0.45),
+          originRadius: radius * (1 + ring.width * 0.45),
+          cx, cy,
+          index,
+          ring,
+          ringRadius: radius,
+          launchPhase: phase,
+          launchMotion: motion,
+          launchBass: bassMotion,
+          seed: ring.seed,
+          kind: ['jade', 'bronze', 'gold'][index],
+          // The inner two fronts cross their neighbouring rings only as they fade.
+          speed: baseRadius * (reducedMotion.matches ? 0.12 : [0.72, 0.36, 0.42][index]),
+          band: baseRadius * 0.16,
+          // Reduced motion removes displacement entirely; the canvas never shakes.
+          strength: baseRadius * (reducedMotion.matches ? 0 : 0.11),
+          visible: [0.72, 0.84, 0.76][index] * (source === 'click' ? 1 : 0.9)
+        });
+      });
+      if (shockwaves.length > 12) shockwaves.splice(0, shockwaves.length - 12);
+    }
+
+    function warpPoint(x, y) {
+      let pushX = 0, pushY = 0;
+      for (const wave of shockwaves) {
+        const dx = x - wave.cx;
+        const dy = y - wave.cy;
+        const distance = Math.hypot(dx, dy);
+        if (distance < 1) continue;
+        if (Math.abs(distance - wave.radius) > wave.band * 3 + baseRadius * 0.032) continue;
+        const angle = Math.atan2(dy, dx);
+        const frontRadius = wave.radius + baseRadius * (0.022 * Math.sin(5 * angle + wave.seed + wave.age * 3)
+          + 0.009 * Math.sin(11 * angle - wave.seed));
+        const offset = (distance - frontRadius) / wave.band;
+        if (Math.abs(offset) > 3) continue;
+        const fade = 1 - wave.age / wave.life;
+        const organic = 0.72 + 0.28 * Math.sin(5 * angle + wave.seed + wave.age * 5)
+          + 0.12 * Math.sin(11 * angle - wave.seed);
+        const push = wave.strength * Math.exp(-0.5 * offset * offset) * fade * fade * organic;
+        pushX += dx / distance * push;
+        pushY += dy / distance * push;
+      }
+      const limit = baseRadius * 0.18;
+      const magnitude = Math.hypot(pushX, pushY);
+      if (magnitude > limit) { pushX *= limit / magnitude; pushY *= limit / magnitude; }
+      return [x + pushX, y + pushY];
+    }
+
+    function burstInk(power = 1) {
+      const motion = reducedMotion.matches ? 0.12 : 1;
+      const bassMotion = bass * (reducedMotion.matches ? 0.18 : 1);
+      const count = Math.round(26 * Math.min(power, 1.5));
+      const addDroplet = (x, y, angle, speed) => {
+        const color = Math.random();
+        const size = baseRadius * (0.005 + Math.pow(Math.random(), 2) * 0.022)
+          * (Math.random() < 0.08 ? 1.45 : 1);
+        droplets.push({
+          x, y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          speed,
+          size: Math.max(1.2, size),
+          age: 0,
+          kind: color < 0.78 ? 'black' : color < 0.88 ? 'jade' : color < 0.97 ? 'bronze' : 'gold'
+        });
+      };
+      // Keep three edge origins separate from the central burst.
+      rings.forEach((ring, ringIndex) => {
+        const { radius, cx, cy } = ringPose(ring, motion, bassMotion);
+        const rotation = Math.random() * tau;
+        for (let i = 0; i < count; i++) {
+          const angle = rotation + (i + (Math.random() - 0.5) * 0.75) * tau / count;
+          const edge = ringEdgeRadius(ring, radius, angle, 1, motion, bassMotion, phase);
+          const direction = angle + (Math.random() - 0.5) * 0.26;
+          const far = Math.random() < 0.16 ? 1.6 + Math.random() * 1.2 : 1;
+          const speed = baseRadius * (0.55 + Math.random() * 1.35) * [1, 0.62, 0.55][ringIndex] * far
+            * (power > 1 ? 1.15 : 1)
+            * (reducedMotion.matches ? 0.22 : 1);
+          addDroplet(cx + Math.cos(angle) * edge, cy + Math.sin(angle) * edge, direction, speed);
+        }
+      });
+      // A fourth, central burst recalls the original spokes inside the inner ring.
+      for (let i = 0; i < count; i++) {
+        const angle = Math.random() * tau;
+        const far = Math.random() < 0.16 ? 1.5 + Math.random() * 1.3 : 1;
+        const speed = baseRadius * (0.8 + Math.random() * 1.4) * far
+          * (reducedMotion.matches ? 0.22 : 1);
+        addDroplet(width / 2 + (Math.random() - 0.5) * baseRadius * 0.04,
+          height / 2 + (Math.random() - 0.5) * baseRadius * 0.04, angle, speed);
+      }
+      if (droplets.length > 500) droplets.splice(0, droplets.length - 500);
+    }
+
+    function triggerAccent(source, inkPower = 0) {
+      const now = performance.now();
+      while (accentTimes.length && now - accentTimes[0] >= 1000) accentTimes.shift();
+      if (accentTimes.length >= 3) return;
+      accentTimes.push(now);
+      if (inkPower) burstInk(inkPower);
+      spawnShockwave(source);
+    }
+
+    function stopMic() {
+      micAnalyser = micSamples = undefined;
+      if (micStream) {
+        micStream.getTracks().forEach(track => track.stop());
+        micStream = undefined;
+      }
+      if (micContext) {
+        micContext.close().catch(() => {});
+        micContext = undefined;
+      }
+      voiceLevel = micBaseline = previousMicRms = micAge = micCooldown = 0;
+      micButton.setAttribute('aria-pressed', 'false');
+      micButton.disabled = false;
+    }
+
+    micButton.addEventListener('click', async () => {
+      if (micStream) {
+        stopMic();
+        micStatus.textContent = '';
+        return;
+      }
+      const local = location.hostname === 'localhost' || location.hostname === '127.0.0.1'
+        || location.hostname === '::1' || location.hostname === '[::1]';
+      if (location.protocol !== 'https:' && !(location.protocol === 'http:' && local)) {
+        micStatus.textContent = '麦克风需要本地服务或 HTTPS';
+        return;
+      }
+      if (!navigator.mediaDevices?.getUserMedia) {
+        micStatus.textContent = '此浏览器无法使用麦克风';
+        return;
+      }
+      micButton.disabled = true;
+      micStatus.textContent = '正在请求麦克风权限…';
+      try {
+        micContext = new AudioContext();
+        await micContext.resume();
+        micStream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: false, autoGainControl: false }
+        });
+        micAnalyser = micContext.createAnalyser();
+        micAnalyser.fftSize = 1024;
+        micContext.createMediaStreamSource(micStream).connect(micAnalyser);
+        micSamples = new Uint8Array(micAnalyser.fftSize);
+        micStream.getAudioTracks()[0]?.addEventListener('ended', () => {
+          stopMic();
+          micStatus.textContent = '麦克风已断开';
+        });
+        micButton.setAttribute('aria-pressed', 'true');
+        micStatus.textContent = '麦克风已开启';
+      } catch {
+        stopMic();
+        micStatus.textContent = '未获得麦克风权限';
+      } finally {
+        micButton.disabled = false;
+      }
+    });
+
+    function stopWebcam() {
+      webcamFeed.pause();
+      webcamFeed.srcObject = null;
+      if (webcamStream) {
+        webcamStream.getTracks().forEach(track => track.stop());
+        webcamStream = undefined;
+      }
+      previousCameraFrame = undefined;
+      cameraInfluence = cameraX = 0;
+      webcamButton.setAttribute('aria-pressed', 'false');
+      webcamButton.disabled = false;
+    }
+
+    webcamButton.addEventListener('click', async () => {
+      if (webcamStream) {
+        stopWebcam();
+        webcamStatus.textContent = '';
+        return;
+      }
+      const local = location.hostname === 'localhost' || location.hostname === '127.0.0.1'
+        || location.hostname === '::1' || location.hostname === '[::1]';
+      if (location.protocol !== 'https:' && !(location.protocol === 'http:' && local)) {
+        webcamStatus.textContent = '摄像头需要本地服务或 HTTPS';
+        return;
+      }
+      if (!navigator.mediaDevices?.getUserMedia) {
+        webcamStatus.textContent = '此浏览器无法使用摄像头';
+        return;
+      }
+      webcamButton.disabled = true;
+      webcamStatus.textContent = '正在请求摄像头权限…';
+      try {
+        webcamStream = await navigator.mediaDevices.getUserMedia({
+          video: { width: { ideal: 320 }, height: { ideal: 240 }, frameRate: { ideal: 15, max: 15 }, facingMode: 'user' },
+          audio: false
+        });
+        webcamFeed.srcObject = webcamStream;
+        await webcamFeed.play();
+        webcamStream.getVideoTracks()[0]?.addEventListener('ended', () => {
+          stopWebcam();
+          webcamStatus.textContent = '摄像头已断开';
+        });
+        webcamButton.setAttribute('aria-pressed', 'true');
+        webcamStatus.textContent = '摄像头已开启';
+      } catch {
+        stopWebcam();
+        webcamStatus.textContent = '未获得摄像头权限';
+      } finally {
+        webcamButton.disabled = false;
+      }
+    });
+
+    function sampleWebcam(now) {
+      if (!webcamStream || webcamFeed.readyState < 2 || now - lastCameraSample < 100) return;
+      lastCameraSample = now;
+      // Mirror the camera so moving right moves the ink right.
+      cameraCtx.setTransform(-1, 0, 0, 1, 96, 0);
+      cameraCtx.drawImage(webcamFeed, 0, 0, 96, 72);
+      cameraCtx.setTransform(1, 0, 0, 1, 0, 0);
+      const pixels = cameraCtx.getImageData(0, 0, 96, 72).data;
+      const frame = new Uint8Array(96 * 72);
+      let motion = 0, horizontal = 0;
+      for (let y = 2; y < 70; y += 2) {
+        for (let x = 2; x < 94; x += 2) {
+          const index = y * 96 + x;
+          const pixel = index * 4;
+          const light = (pixels[pixel] * 3 + pixels[pixel + 1] * 4 + pixels[pixel + 2]) >> 3;
+          frame[index] = light;
+          if (!previousCameraFrame) continue;
+          const change = Math.abs(light - previousCameraFrame[index]) - 24;
+          if (change > 0) {
+            motion += change;
+            horizontal += change * x;
+          }
+        }
+      }
+      previousCameraFrame = frame;
+      if (motion > 450) {
+        cameraX = Math.max(-1, Math.min(1, horizontal / motion / 48 - 1));
+        cameraInfluence = Math.max(0.3, Math.min(1, motion / 2400));
+      }
+    }
+
+    function updateMic(dt) {
+      if (!micAnalyser) return;
+      micAnalyser.getByteTimeDomainData(micSamples);
+      let sum = 0;
+      for (const sample of micSamples) {
+        const amplitude = (sample - 128) / 128;
+        sum += amplitude * amplitude;
+      }
+      const rms = Math.sqrt(sum / micSamples.length);
+      micAge += dt;
+      micCooldown = Math.max(0, micCooldown - dt);
+      const threshold = Math.max(0.075, micBaseline * 2.4);
+      const rise = Math.max(0.045, micBaseline * 0.9);
+      if (micAge > 0.4 && micCooldown === 0 && rms > threshold
+          && rms - previousMicRms > rise) {
+        triggerAccent('click', 2);
+        micCooldown = 0.55;
+      }
+      micBaseline += (rms - micBaseline) * (1 - Math.exp(-dt / (rms > micBaseline ? 1.8 : 0.7)));
+      previousMicRms = rms;
+      const target = Math.max(0, Math.min(1, (rms - 0.008) * 8));
+      voiceLevel += (target - voiceLevel) * (1 - Math.exp(-dt / (target > voiceLevel ? 0.075 : 0.28)));
+    }
+
+    function drawVoiceCore() {
+      if (voiceLevel < 0.003) return;
+      const energy = voiceLevel * (reducedMotion.matches ? 0.75 : 1);
+      const radius = baseRadius * (0.2 + energy * 0.52);
+      const core = ctx.createRadialGradient(width / 2, height / 2, 0,
+        width / 2, height / 2, radius);
+      core.addColorStop(0, `rgba(244, 190, 91, ${energy * 0.28})`);
+      core.addColorStop(0.3, `rgba(228, 169, 74, ${energy * 0.16})`);
+      core.addColorStop(1, 'rgba(228, 169, 74, 0)');
+      ctx.fillStyle = core;
+      ctx.fillRect(width / 2 - radius, height / 2 - radius, radius * 2, radius * 2);
+    }
+
+    function syncPlaybackButtons() {
+      const playing = synthPlaying || (audio.hasAttribute('src') && !audio.paused);
+      playButton.disabled = playing;
+      pauseButton.disabled = !playing;
+    }
+
+    function synthVoice(frequency, start, duration, peak, attack) {
+      const oscillator = synthContext.createOscillator();
+      const envelope = synthContext.createGain();
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(frequency, start);
+      envelope.gain.setValueAtTime(0.0001, start);
+      envelope.gain.exponentialRampToValueAtTime(peak, start + attack);
+      envelope.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+      oscillator.connect(envelope).connect(synthMaster);
+      oscillator.start(start);
+      oscillator.stop(start + duration + 0.02);
+      oscillator.onended = () => { oscillator.disconnect(); envelope.disconnect(); };
+    }
+
+    function scheduleSynth() {
+      if (!synthPlaying || !synthContext) return;
+      const notes = [220, 293.66, 261.63, 329.63, 392, 261.63]; // A-minor pentatonic.
+      const now = synthContext.currentTime;
+      while (nextPulseTime < now + 0.14) {
+        const start = Math.max(nextPulseTime, now + 0.015);
+        synthVoice(55, start, 0.85, 0.13, 0.045);
+        if (pulseIndex % 4 === 0) {
+          synthVoice(notes[(pulseIndex / 4) % notes.length], start + 0.13, 4.35, 0.035, 0.7);
+        }
+        lastSynthPulse = start;
+        pulseIndex++;
+        nextPulseTime = start + 60 / 50;
+      }
+    }
+
+    async function startSynth() {
+      try {
+        synthContext = new AudioContext();
+        await synthContext.resume();
+        synthMaster = synthContext.createGain();
+        synthMaster.gain.value = audio.muted ? 0 : 0.3;
+        synthMaster.connect(synthContext.destination);
+        synthPlaying = true;
+        pulseIndex = 0;
+        nextPulseTime = synthContext.currentTime + 0.05;
+        scheduleSynth();
+        synthTimer = setInterval(scheduleSynth, 100);
+        fileName.textContent = '正在播放每分钟 50 拍的舒缓节奏';
+      } catch {
+        stopSynth();
+        fileName.textContent = '音频暂不可用';
+      }
+      syncPlaybackButtons();
+    }
+
+    function stopSynth() {
+      synthPlaying = false;
+      clearInterval(synthTimer);
+      synthTimer = undefined;
+      if (synthContext) {
+        const closingContext = synthContext;
+        if (synthMaster) synthMaster.gain.setTargetAtTime(0, closingContext.currentTime, 0.025);
+        synthContext = synthMaster = undefined;
+        setTimeout(() => closingContext.close().catch(() => {}), 150);
+      }
+      lastSynthPulse = -Infinity;
+      syncPlaybackButtons();
+    }
+
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+      if (!/\.mp3$/i.test(file.name) && file.type !== 'audio/mpeg') {
+        fileName.textContent = '请选择 MP3 音频文件';
+        fileInput.value = '';
+        return;
+      }
+      stopSynth();
+      audio.pause();
+      if (audioUrl) URL.revokeObjectURL(audioUrl);
+      audioUrl = URL.createObjectURL(file);
+      audio.src = audioUrl;
+      audio.load();
+      bass = bassAverage = hitThreshold = previousBass = musicPeak = cooldownFrames = 0;
+      fileName.textContent = file.name;
+      fileName.title = file.name;
+      syncPlaybackButtons();
+      fileInput.value = '';
+    });
+
+    playButton.addEventListener('click', async () => {
+      if (!audio.hasAttribute('src')) {
+        playButton.disabled = true;
+        await startSynth();
+        return;
+      }
+      try {
+        if (!audioContext) {
+          audioContext = new AudioContext();
+          analyser = audioContext.createAnalyser();
+          analyser.fftSize = 256;
+          analyser.smoothingTimeConstant = 0.4;
+          frequencies = new Uint8Array(analyser.frequencyBinCount);
+          audioContext.createMediaElementSource(audio).connect(analyser);
+          analyser.connect(audioContext.destination);
+        }
+        await audioContext.resume();
+        await audio.play();
+      } catch {
+        fileName.textContent = '无法播放此 MP3 音频文件';
+      }
+    });
+    pauseButton.addEventListener('click', () => {
+      if (synthPlaying) {
+        stopSynth();
+        fileName.textContent = '每分钟 50 拍的舒缓节奏已暂停';
+      } else audio.pause();
+    });
+    muteButton.addEventListener('click', () => {
+      audio.muted = !audio.muted;
+      muteButton.setAttribute('aria-pressed', String(audio.muted));
+      if (synthMaster && synthContext) {
+        synthMaster.gain.setTargetAtTime(audio.muted ? 0 : 0.3, synthContext.currentTime, 0.04);
+      }
+    });
+    audio.addEventListener('play', syncPlaybackButtons);
+    audio.addEventListener('pause', syncPlaybackButtons);
+    audio.addEventListener('ended', syncPlaybackButtons);
+    addEventListener('beforeunload', () => {
+      if (audioUrl) URL.revokeObjectURL(audioUrl);
+      stopSynth();
+      stopMic();
+      stopWebcam();
+    });
+
+    function resize() {
+      width = innerWidth;
+      height = innerHeight;
+      // Keep the animated canvas small enough to upload as an AR texture each frame.
+      const dpr = xrSession ? Math.min(1, 1280 / Math.max(width, height)) : Math.min(devicePixelRatio || 1, 2);
+      canvas.width = Math.round(width * dpr);
+      canvas.height = Math.round(height * dpr);
+      paperCanvas.width = canvas.width;
+      paperCanvas.height = canvas.height;
+      displayCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (!xrSession) {
+        ctx.fillStyle = '#FAF6F0';
+        ctx.fillRect(0, 0, width, height);
+      }
+      baseRadius = Math.min(width, height) * 0.185;
+      fresh = true;
+    }
+
+    addEventListener('pointermove', event => {
+      pointerX = Math.max(-1, Math.min(1, (event.clientX - width / 2) / (width / 2)));
+      pointerY = Math.max(-1, Math.min(1, (event.clientY - height / 2) / (height / 2)));
+    });
+    addEventListener('pointerdown', () => triggerAccent('click', 1));
+    document.addEventListener('pointerleave', () => { pointerX = pointerY = 0; });
+
+    function drawRing(ring, motion, bassMotion) {
+      const [inkR, inkG, inkB] = inkPalette.black;
+      const { radius, cx, cy } = ringPose(ring, motion, bassMotion);
+      const wobble = a => radius + radius * ring.wobble * (0.008 * Math.sin(3 * a + 0.5 + ring.seed + motion * phase * 0.23)
+        + 0.005 * Math.sin(7 * a - 0.8 - ring.seed - motion * phase * 0.16)
+        + 0.002 * Math.sin(13 * a + 1.4 + motion * phase * 0.34));
+      const point = a => warpPoint(cx + wobble(a) * Math.cos(a), cy + wobble(a) * Math.sin(a));
+
+      // The soft wash beneath each stroke adds depth without a hard outline.
+      ctx.beginPath();
+      for (let i = 0; i <= steps; i++) {
+        const [x, y] = point(i * tau / steps);
+        i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+      }
+      ctx.closePath();
+      ctx.filter = `blur(${ring.wash}px)`;
+      ctx.strokeStyle = `rgba(${inkR}, ${inkG}, ${inkB}, ${ring.bleed * (fresh ? 1 : ring.refresh)})`;
+      ctx.lineWidth = radius * ring.width * (1.4 + bassMotion * 0.8 * ring.bass);
+      ctx.stroke();
+      ctx.filter = 'none';
+
+      const edge = (a, side) => {
+        const r = ringEdgeRadius(ring, radius, a, side, motion, bassMotion, phase);
+        return warpPoint(cx + r * Math.cos(a), cy + r * Math.sin(a));
+      };
+      ctx.beginPath();
+      for (let i = 0; i <= steps; i++) {
+        const [x, y] = edge(i * tau / steps, 1);
+        i ? ctx.lineTo(x, y) : ctx.moveTo(x, y);
+      }
+      for (let i = steps; i >= 0; i--) {
+        const [x, y] = edge(i * tau / steps, -1);
+        ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      const alpha = ring.opacity * (fresh ? 1 : ring.refresh);
+      const ink = ctx.createLinearGradient(cx - radius, cy - radius, cx + radius, cy + radius);
+      ink.addColorStop(0, `rgba(${inkR}, ${inkG}, ${inkB}, ${alpha})`);
+      ink.addColorStop(0.55, `rgba(${inkR}, ${inkG}, ${inkB}, ${alpha * 0.89})`);
+      ink.addColorStop(1, `rgba(${inkR}, ${inkG}, ${inkB}, ${alpha * 0.78})`);
+      ctx.fillStyle = ink;
+      ctx.filter = `blur(${ring.blur}px)`;
+      ctx.fill();
+      ctx.filter = 'none';
+    }
+
+    function draw(now) {
+      const dt = lastTime ? Math.min((now - lastTime) / 1000, 0.05) : 0;
+      updateMic(dt);
+      cameraInfluence *= Math.exp(-dt / 1.1);
+      sampleWebcam(now);
+      if (Math.abs(targetTone - tone) > 0.0001) {
+        tone += (targetTone - tone) * (1 - Math.exp(-dt / 0.25));
+        updateInkPalette();
+      }
+      let bassTarget = 0, beatEnergy = 0;
+      if (analyser) {
+        analyser.getByteFrequencyData(frequencies);
+        if (!audio.paused) {
+          // FFT 256 has broad bins: weight the low end, and let low mids carry bass-light music.
+          const weights = [1, 0.9, 0.7, 0.5, 0.35, 0.2];
+          let low = 0, body = 0;
+          for (let i = 0; i < weights.length; i++) low += frequencies[i + 1] * weights[i];
+          for (let i = 7; i <= 16; i++) body += frequencies[i];
+          const energy = Math.max(low / (3.65 * 255), body / (10 * 255) * 0.55);
+          musicPeak = Math.max(energy, musicPeak * Math.exp(-dt / 5));
+          bassTarget = Math.min(1, Math.max(0, (energy - 0.008) / Math.max(0.08, musicPeak * 1.3)));
+          beatEnergy = energy;
+        }
+      }
+      if (synthPlaying && synthContext) {
+        const pulseAge = synthContext.currentTime - lastSynthPulse;
+        if (pulseAge >= 0) {
+          const pulse = 0.38 * Math.exp(-pulseAge / 0.27);
+          bassTarget = Math.max(bassTarget, pulse);
+          beatEnergy = Math.max(beatEnergy, pulse);
+        }
+      }
+      const responseTime = bassTarget > bass ? 0.12 : 0.38;
+      bass += (bassTarget - bass) * (1 - Math.exp(-dt / responseTime));
+      bassAverage += (beatEnergy - bassAverage) * (1 - Math.exp(-dt / 1.2));
+      hitThreshold = Math.max(bassAverage * 1.12, hitThreshold * Math.exp(-dt / 0.55));
+      if (cooldownFrames > 0) cooldownFrames--;
+      if ((synthPlaying || !audio.paused) && cooldownFrames === 0 && beatEnergy > 0.018
+          && beatEnergy > hitThreshold
+          && beatEnergy - previousBass > Math.max(0.005, bassAverage * 0.035)) {
+        triggerAccent('beat', 1);
+        hitThreshold = beatEnergy * 1.35;
+        cooldownFrames = 8;
+      }
+      previousBass = beatEnergy;
+      phase += dt * (reducedMotion.matches ? 0.15 : 1);
+      lastTime = now;
+      const motion = reducedMotion.matches ? 0.12 : 1;
+      const bassMotion = bass * (reducedMotion.matches ? 0.18 : 1);
+      const follow = 1 - Math.exp(-dt / 0.33);
+      const horizontalTarget = pointerX * (1 - cameraInfluence) + cameraX * cameraInfluence;
+      driftX += (horizontalTarget - driftX) * follow;
+      driftY += (pointerY - driftY) * follow;
+      for (let i = shockwaves.length - 1; i >= 0; i--) {
+        const wave = shockwaves[i];
+        wave.age += dt;
+        wave.radius = wave.originRadius + wave.age * wave.speed;
+        if (wave.age >= wave.life) shockwaves.splice(i, 1);
+      }
+      // In AR, fade the ink toward transparency so the real world remains visible.
+      if (!fresh) {
+        ctx.globalCompositeOperation = xrSession ? 'destination-out' : 'source-over';
+        ctx.fillStyle = xrSession ? 'rgba(0, 0, 0, 0.08)' : 'rgba(250, 246, 240, 0.08)';
+        ctx.fillRect(0, 0, width, height);
+        ctx.globalCompositeOperation = 'source-over';
+      }
+      const [axisR, axisG, axisB] = inkPalette.black;
+      const axisAlpha = fresh ? 0.08 : 0.007;
+      const axis = ctx.createLinearGradient(0, 0, 0, height);
+      axis.addColorStop(0, `rgba(${axisR}, ${axisG}, ${axisB}, 0)`);
+      axis.addColorStop(0.25, `rgba(${axisR}, ${axisG}, ${axisB}, ${axisAlpha})`);
+      axis.addColorStop(0.75, `rgba(${axisR}, ${axisG}, ${axisB}, ${axisAlpha})`);
+      axis.addColorStop(1, `rgba(${axisR}, ${axisG}, ${axisB}, 0)`);
+      ctx.beginPath();
+      ctx.moveTo(width / 2, 0);
+      ctx.lineTo(width / 2, height);
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = axis;
+      ctx.stroke();
+      drawVoiceCore();
+      for (const ring of rings) drawRing(ring, motion, bassMotion);
+
+      // Drag slows the splashes; their widening, thinning marks dry into paper.
+      const drag = Math.exp(-2.5 * dt);
+      for (let i = droplets.length - 1; i >= 0; i--) {
+        const drop = droplets[i];
+        drop.age += dt;
+        if (drop.age >= 1.05) { droplets.splice(i, 1); continue; }
+        drop.vx *= drag;
+        drop.vy *= drag;
+        drop.x += drop.vx * dt;
+        drop.y += drop.vy * dt;
+        const slowed = 1 - Math.hypot(drop.vx, drop.vy) / drop.speed;
+        const spread = 1 + slowed * 1.8;
+        const fade = Math.pow(1 - drop.age / 1.05, 1.5);
+        const [r, g, b] = inkPalette[drop.kind];
+        ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${0.14 * fade})`;
+        ctx.beginPath();
+        ctx.arc(drop.x, drop.y, drop.size * spread, 0, tau);
+        ctx.fill();
+      }
+      // Brush dots drift while wet, spread into the fibres, then dry away.
+      for (let i = brushMarks.length - 1; i >= 0; i--) {
+        const mark = brushMarks[i];
+        mark.age += dt;
+        if (mark.age >= 2.4) { brushMarks.splice(i, 1); continue; }
+        const soak = 1 - Math.exp(-mark.age * 2.2);
+        const fade = Math.pow(1 - mark.age / 2.4, 1.2);
+        const wobble = (1 - soak) * (reducedMotion.matches ? 0.12 : 0.8);
+        const [x, y] = warpPoint(mark.x + Math.sin(mark.age * 3 + mark.seed) * wobble,
+          mark.y + Math.cos(mark.age * 2.5 + mark.seed) * wobble);
+        const size = mark.size * (1 + soak * 0.75);
+        const [r, g, b] = inkPalette[mark.kind];
+        ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${0.04 * fade})`;
+        ctx.beginPath();
+        ctx.arc(x, y, size * 1.55, 0, tau);
+        ctx.fill();
+        ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${0.13 * fade})`;
+        ctx.beginPath();
+        ctx.arc(x, y, size * 0.8, 0, tau);
+        ctx.fill();
+      }
+      // Repaint the visible canvas from the persistent ink layer. Wavefronts stay transient.
+      if (xrSession) displayCtx.clearRect(0, 0, width, height);
+      displayCtx.drawImage(paperCanvas, 0, 0, width, height);
+      for (const wave of shockwaves) {
+        const progress = wave.age / wave.life;
+        const fade = progress < 0.48 ? 1 : Math.pow((1 - progress) / 0.52, 1.15);
+        const [waveR, waveG, waveB] = inkPalette[wave.kind];
+        const [inkR, inkG, inkB] = inkPalette.black;
+        const travel = wave.age * wave.speed;
+        const trace = (distance, reverse = false) => {
+          for (let i = 0; i <= 120; i++) {
+            const angle = (reverse ? 120 - i : i) * tau / 120;
+            const edge = ringEdgeRadius(wave.ring, wave.ringRadius, angle, 1,
+              wave.launchMotion, wave.launchBass, wave.launchPhase);
+            const wobblyRadius = edge + distance * (1 + 0.035 * Math.sin(5 * angle + wave.seed + wave.age * 2));
+            const x = wave.cx + wobblyRadius * Math.cos(angle);
+            const y = wave.cy + wobblyRadius * Math.sin(angle);
+            if (!i && !reverse) displayCtx.moveTo(x, y);
+            else displayCtx.lineTo(x, y);
+          }
+        };
+        // The translucent ribbon visibly connects each parent ring to its moving front.
+        if (travel > 1) {
+          displayCtx.beginPath();
+          trace(travel);
+          trace(0, true);
+          displayCtx.closePath();
+          const wash = displayCtx.createRadialGradient(wave.cx, wave.cy, wave.originRadius,
+            wave.cx, wave.cy, wave.originRadius + travel + 2);
+          wash.addColorStop(0, `rgba(${waveR}, ${waveG}, ${waveB}, 0)`);
+          wash.addColorStop(1, `rgba(${waveR}, ${waveG}, ${waveB}, ${0.14 * fade})`);
+          displayCtx.fillStyle = wash;
+          displayCtx.fill();
+        }
+        const launch = Math.max(0, 1 - wave.age / 0.85);
+        if (launch > 0) {
+          displayCtx.beginPath();
+          trace(0);
+          displayCtx.closePath();
+          displayCtx.strokeStyle = `rgba(${inkR}, ${inkG}, ${inkB}, ${wave.visible * 0.3 * launch})`;
+          displayCtx.lineWidth = Math.max(2, baseRadius * 0.025);
+          displayCtx.filter = 'blur(1px)';
+          displayCtx.stroke();
+        }
+        displayCtx.beginPath();
+        trace(travel);
+        displayCtx.closePath();
+        displayCtx.strokeStyle = `rgba(${waveR}, ${waveG}, ${waveB}, ${wave.visible * 0.42 * fade})`;
+        displayCtx.lineWidth = Math.max(4, baseRadius * 0.075);
+        displayCtx.filter = 'blur(3px)';
+        displayCtx.stroke();
+        displayCtx.filter = 'none';
+        displayCtx.strokeStyle = `rgba(${inkR}, ${inkG}, ${inkB}, ${wave.visible * 0.4 * fade})`;
+        displayCtx.lineWidth = Math.max(1.5, baseRadius * 0.015);
+        displayCtx.stroke();
+      }
+      // Crisp travelling heads keep the splashes legible as ink droplets.
+      for (const drop of droplets) {
+        const [r, g, b] = inkPalette[drop.kind];
+        displayCtx.fillStyle = `rgba(${r}, ${g}, ${b}, ${0.48 * (1 - drop.age / 1.05)})`;
+        displayCtx.beginPath();
+        displayCtx.arc(drop.x, drop.y, drop.size * 1.1, 0, tau);
+        displayCtx.fill();
+      }
+      fresh = false;
+      if (!xrSession) windowFrameId = requestAnimationFrame(draw);
+    }
+
+    // WebXR requires a WebGL layer. The existing 2D animation is used as a
+    // transparent texture on a world-fixed quad; each XRView gets its own pose.
+    function multiplyMatrices(a, b) {
+      const out = new Float32Array(16);
+      for (let column = 0; column < 4; column++) {
+        for (let row = 0; row < 4; row++) {
+          out[column * 4 + row] = a[row] * b[column * 4]
+            + a[4 + row] * b[column * 4 + 1]
+            + a[8 + row] * b[column * 4 + 2]
+            + a[12 + row] * b[column * 4 + 3];
+        }
+      }
+      return out;
+    }
+
+    function makeXRShader(gl, type, source) {
+      const shader = gl.createShader(type);
+      gl.shaderSource(shader, source);
+      gl.compileShader(shader);
+      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        const message = gl.getShaderInfoLog(shader);
+        gl.deleteShader(shader);
+        throw new Error(message || '增强现实着色器编译失败');
+      }
+      return shader;
+    }
+
+    function prepareXRGraphics(gl) {
+      const vertexShader = makeXRShader(gl, gl.VERTEX_SHADER, `
+        attribute vec2 aPosition;
+        attribute vec2 aUv;
+        uniform mat4 uMvp;
+        varying vec2 vUv;
+        void main() {
+          vUv = aUv;
+          gl_Position = uMvp * vec4(aPosition, 0.0, 1.0);
+        }
+      `);
+      const fragmentShader = makeXRShader(gl, gl.FRAGMENT_SHADER, `
+        precision mediump float;
+        uniform sampler2D uTexture;
+        uniform vec2 uCrop;
+        varying vec2 vUv;
+        void main() {
+          vec4 ink = texture2D(uTexture, vec2(0.5) + (vUv - vec2(0.5)) * uCrop);
+          // Bright ink remains visible on optical see-through glasses.
+          gl_FragColor = vec4(0.96, 0.89, 0.73, ink.a);
+        }
+      `);
+      xrProgram = gl.createProgram();
+      gl.attachShader(xrProgram, vertexShader);
+      gl.attachShader(xrProgram, fragmentShader);
+      gl.linkProgram(xrProgram);
+      gl.deleteShader(vertexShader);
+      gl.deleteShader(fragmentShader);
+      if (!gl.getProgramParameter(xrProgram, gl.LINK_STATUS)) {
+        throw new Error(gl.getProgramInfoLog(xrProgram) || '增强现实图形程序连接失败');
+      }
+      xrBuffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, xrBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+        -0.47, -0.47, 0, 0,   0.47, -0.47, 1, 0,   -0.47, 0.47, 0, 1,
+         0.47, -0.47, 1, 0,   0.47,  0.47, 1, 1,   -0.47, 0.47, 0, 1
+      ]), gl.STATIC_DRAW);
+      xrTexture = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, xrTexture);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+      gl.useProgram(xrProgram);
+      gl.uniform1i(gl.getUniformLocation(xrProgram, 'uTexture'), 0);
+      gl.enable(gl.BLEND);
+      gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+      gl.disable(gl.DEPTH_TEST);
+    }
+
+    function releaseXRGraphics() {
+      if (xrGl) {
+        if (xrTexture) xrGl.deleteTexture(xrTexture);
+        if (xrBuffer) xrGl.deleteBuffer(xrBuffer);
+        if (xrProgram) xrGl.deleteProgram(xrProgram);
+      }
+      xrGl = xrTexture = xrBuffer = xrProgram = null;
+      xrTextureWidth = xrTextureHeight = 0;
+      xrModelMatrix = null;
+    }
+
+    function onXRFrame(now, frame) {
+      const session = frame.session;
+      if (session !== xrSession) return;
+      session.requestAnimationFrame(onXRFrame);
+      draw(now);
+      const pose = frame.getViewerPose(xrReferenceSpace);
+      if (!pose || !xrGl) return;
+      if (!xrModelMatrix) {
+        const forward = new Float32Array([
+          1, 0, 0, 0,  0, 1, 0, 0,  0, 0, 1, 0,  0, 0, -1.35, 1
+        ]);
+        // Fix the ring in space at the point the user was facing on entry.
+        xrModelMatrix = multiplyMatrices(pose.transform.matrix, forward);
+      }
+      const gl = xrGl;
+      const layer = session.renderState.baseLayer;
+      gl.bindFramebuffer(gl.FRAMEBUFFER, layer.framebuffer);
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+      gl.useProgram(xrProgram);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, xrTexture);
+      if (xrTextureWidth !== canvas.width || xrTextureHeight !== canvas.height) {
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+        xrTextureWidth = canvas.width;
+        xrTextureHeight = canvas.height;
+      } else {
+        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+      }
+      const crop = gl.getUniformLocation(xrProgram, 'uCrop');
+      gl.uniform2f(crop, Math.min(1, canvas.height / canvas.width), Math.min(1, canvas.width / canvas.height));
+      gl.bindBuffer(gl.ARRAY_BUFFER, xrBuffer);
+      const position = gl.getAttribLocation(xrProgram, 'aPosition');
+      const uv = gl.getAttribLocation(xrProgram, 'aUv');
+      gl.enableVertexAttribArray(position);
+      gl.enableVertexAttribArray(uv);
+      gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 16, 0);
+      gl.vertexAttribPointer(uv, 2, gl.FLOAT, false, 16, 8);
+      const mvp = gl.getUniformLocation(xrProgram, 'uMvp');
+      for (const view of pose.views) {
+        const viewport = layer.getViewport(view);
+        if (!viewport) continue;
+        gl.viewport(viewport.x, viewport.y, viewport.width, viewport.height);
+        const viewModel = multiplyMatrices(view.transform.inverse.matrix, xrModelMatrix);
+        gl.uniformMatrix4fv(mvp, false, multiplyMatrices(view.projectionMatrix, viewModel));
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+      }
+    }
+
+    async function onXRSessionEnd() {
+      xrSession = xrReferenceSpace = null;
+      xrOverlay.classList.remove('active');
+      releaseXRGraphics();
+      resize();
+      lastTime = 0;
+      if (windowFrameId !== null) cancelAnimationFrame(windowFrameId);
+      windowFrameId = requestAnimationFrame(draw);
+      await checkARSupport();
+      if (xrLastError) {
+        xrStatus.textContent = xrLastError;
+        xrLastError = '';
+      }
+    }
+
+    async function checkARSupport() {
+      xrButton.disabled = true;
+      if (!isSecureContext) {
+        xrStatus.textContent = '增强现实需要 HTTPS 或本地服务。';
+      } else if (!navigator.xr || !navigator.xr.isSessionSupported) {
+        xrStatus.textContent = '此浏览器未提供 WebXR 增强现实功能。';
+      } else {
+        try {
+          const supported = await navigator.xr.isSessionSupported('immersive-ar');
+          if (supported && !xrSession) {
+            xrButton.disabled = false;
+            xrStatus.textContent = '进入增强现实前，请先选择音乐。';
+          } else if (!xrSession) {
+            xrStatus.textContent = '此浏览器或设备无法使用沉浸式增强现实。';
+          }
+        } catch (error) {
+          xrStatus.textContent = `增强现实支持检查失败： ${error.name || '未知错误'}`;
+        }
+      }
+    }
+
+    async function enterAR() {
+      if (xrSession || !navigator.xr) return;
+      try {
+        // Request the session inside the click handler to preserve user activation.
+        const session = await navigator.xr.requestSession('immersive-ar', {
+          requiredFeatures: ['local'],
+          optionalFeatures: ['dom-overlay'],
+          domOverlay: { root: xrOverlay }
+        });
+        xrSession = session;
+        session.addEventListener('end', onXRSessionEnd, { once: true });
+        session.addEventListener('select', () => triggerAccent('click', 1));
+        if (windowFrameId !== null) cancelAnimationFrame(windowFrameId);
+        windowFrameId = null;
+        const gl = document.createElement('canvas').getContext('webgl', { alpha: true, antialias: true });
+        if (!gl || !gl.makeXRCompatible) throw new Error('无法使用兼容 WebXR 的 WebGL 图形环境');
+        xrGl = gl;
+        await gl.makeXRCompatible();
+        if (xrSession !== session) return;
+        prepareXRGraphics(gl);
+        session.updateRenderState({ baseLayer: new XRWebGLLayer(session, gl) });
+        xrReferenceSpace = await session.requestReferenceSpace('local');
+        if (xrSession !== session) return;
+        xrOverlay.classList.toggle('active', session.domOverlayState?.type === 'screen');
+        xrButton.disabled = true;
+        xrStatus.textContent = '增强现实已开启。使用系统返回操作退出。';
+        resize();
+        lastTime = 0;
+        session.requestAnimationFrame(onXRFrame);
+      } catch (error) {
+        xrLastError = `无法进入增强现实： ${error.message && /[\u3400-\u9fff]/.test(error.message) ? error.message : error.name || '未知错误'}`;
+        xrStatus.textContent = xrLastError;
+        if (xrSession) {
+          try { await xrSession.end(); } catch (_) { await onXRSessionEnd(); }
+        } else {
+          await checkARSupport();
+          xrStatus.textContent = xrLastError;
+          xrLastError = '';
+        }
+      }
+    }
+
+    xrButton.addEventListener('click', enterAR);
+    document.querySelector('#exit-ar').addEventListener('click', () => xrSession?.end());
+    document.querySelector('#recenter-ar').addEventListener('click', () => { xrModelMatrix = null; });
+    if (navigator.xr?.addEventListener) navigator.xr.addEventListener('devicechange', checkARSupport);
+    checkARSupport();
+    addEventListener('resize', resize);
+    resize();
+    windowFrameId = requestAnimationFrame(draw);
+  </script>
+</body>
+</html>
