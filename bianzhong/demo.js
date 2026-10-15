@@ -39,7 +39,7 @@
   const stage = $('stage'), rack = $('bellRack'), keys = $('noteKeys'), mv = $('modelViewer');
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   let audioContext, output, muted = false, sequenceId = 0, sequenceTimers = [];
-  let modelURL = null, modelReady = false, modelScriptPromise, pointerStart = null;
+  let modelURL = null, modelName = '', modelReady = false, modelScriptPromise, pointerStart = null;
   let flashTimer, modelLoadTimer, fileAttempt = 0;
   const voices = new Set(), highlightTimers = new Map();
   if (window.self !== window.top) document.documentElement.classList.add('embedded');
@@ -185,6 +185,7 @@
     $('stageHint').textContent = '点击钟体，听见从左到右的音高变化';
     mv.autoRotate = false; $('spin').checked = false;
     ['resetView', 'showRack', 'spin'].forEach(id => { $(id).disabled = true; });
+    $('loadModel').textContent = '选择模型';
     if (message) $('modelStatus').textContent = message;
   }
   function releaseModel() {
@@ -205,6 +206,10 @@
   }
   async function loadModel(file) {
     if (!file) return;
+    if (location.protocol === 'file:') {
+      $('modelStatus').textContent = '当前以本地文件打开，浏览器会阻止三维组件加载。请点击下方“打开网页版”，在网站中选择 GLB 进行展示。';
+      return;
+    }
     const attempt = ++fileAttempt;
     if (!/\.glb$/i.test(file.name)) { $('modelStatus').textContent = '请选择单文件 GLB；GLTF、OBJ、FBX 等格式请先转换为 GLB。'; return; }
     if (file.size > 100 * 1024 * 1024) { $('modelStatus').textContent = '模型超过 100 MB，建议先简化模型并压缩纹理，再导出单文件 GLB。'; return; }
@@ -218,13 +223,12 @@
       if ([...(gltf.buffers || []), ...(gltf.images || [])].some(resource => resource.uri && !resource.uri.startsWith('data:'))) throw Error('模型包含外部资源，请将全部纹理与数据打包到单个 GLB');
       if ((gltf.extensionsUsed || []).some(extension => ['KHR_draco_mesh_compression', 'KHR_texture_basisu', 'EXT_meshopt_compression'].includes(extension))) throw Error('模型包含压缩扩展，请导出无需额外解码器的未压缩 GLB');
       await ensureModelViewer(); if (attempt !== fileAttempt) return;
-      releaseModel(); showRack(); modelURL = URL.createObjectURL(file); mv.src = modelURL;
+      releaseModel(); showRack(); modelName = file.name; modelURL = URL.createObjectURL(file); mv.src = modelURL;
       // 加载期间先保留示意钟架；成功后再切换，避免空白舞台。
-      modelLoadTimer = setTimeout(() => { if (attempt === fileAttempt && !modelReady) { releaseModel(); showRack('模型载入超时，已保留可演奏的示意钟架。可尝试更小的单文件 GLB。'); } }, 25000);
+      modelLoadTimer = setTimeout(() => { if (attempt === fileAttempt && !modelReady) { releaseModel(); showRack('模型载入超时，已保留可演奏的示意钟架。可尝试更小的单文件 GLB。'); } }, 60000);
     } catch (error) {
       const message = /[\u4e00-\u9fff]/.test(error.message || '') ? error.message : '模型未能载入，请检查文件格式与资源是否完整';
-      const hint = location.protocol === 'file:' ? '请通过本地服务器打开课程；' : '';
-      if (attempt === fileAttempt) showRack(`${message}。${hint}示意钟架仍可正常演奏。`);
+      if (attempt === fileAttempt) showRack(`${message}。示意钟架仍可正常演奏。`);
     }
   }
   mv.addEventListener('load', () => {
@@ -233,7 +237,8 @@
     $('modeLabel').textContent = '自载三维模型 · 浏览器合成钟声';
     $('stageHint').textContent = '拖动旋转 · 缩放查看 · 点击横向音区发声';
     ['resetView', 'showRack', 'spin'].forEach(id => { $(id).disabled = false; });
-    $('modelStatus').textContent = '本地模型已载入。使用鼠标滚轮或双指手势缩放；点击舞台的十个横向音区发声。';
+    $('loadModel').textContent = '更换模型';
+    $('modelStatus').textContent = `已载入：${modelName}。拖动旋转、滚轮或双指缩放；点击“更换模型”可切换展示文件。`;
   });
   mv.addEventListener('error', () => { releaseModel(); showRack('模型载入失败，已回到可演奏的示意钟架。请确认模型及纹理都包含在同一个 GLB 中。'); });
   mv.addEventListener('pointerdown', event => { pointerStart = { x: event.clientX, y: event.clientY }; });
@@ -245,6 +250,11 @@
     const rect = mv.getBoundingClientRect(); ring(Math.max(0, Math.min(9, Math.floor((event.clientX - rect.left) / rect.width * 10))), event.clientX, event.clientY);
   });
   $('loadModel').addEventListener('click', () => $('modelFile').click());
+  if (location.protocol === 'file:') {
+    $('loadModel').disabled = true;
+    $('onlineVersion').hidden = false;
+    $('modelStatus').textContent = '当前以本地文件打开，浏览器会阻止三维组件加载。请点击下方“打开网页版”，在网站中选择 GLB 进行展示；示意钟架仍可演奏。';
+  }
   $('modelFile').addEventListener('change', event => { loadModel(event.target.files[0]); event.target.value = ''; });
   ['dragenter', 'dragover'].forEach(name => stage.addEventListener(name, event => { event.preventDefault(); stage.classList.add('dragover'); }));
   stage.addEventListener('dragleave', event => { if (!stage.contains(event.relatedTarget)) stage.classList.remove('dragover'); });

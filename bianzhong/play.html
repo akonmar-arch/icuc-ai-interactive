@@ -7,7 +7,7 @@
   <title>编钟 · 交互体验</title>
   <meta name="description" content="点击十枚示意编钟，体验五声音阶与浏览器合成钟声，也可导入本地单文件 GLB 模型。">
   <link rel="stylesheet" href="demo.css">
-  <script src="demo.js" defer></script>
+  <script src="demo.js?v=classroom-import-1" defer></script>
 </head>
 <body>
   <main class="experience">
@@ -33,13 +33,14 @@
       <p class="status" id="status" role="status" aria-live="polite">点击钟体或音键开始，也可用键盘数字 1—0 演奏。</p>
     </section>
 
-    <details class="model-tools" id="modelTools">
-      <summary><span>导入自己的三维模型</span><span class="summary-detail">可选</span></summary>
+    <details class="model-tools" id="modelTools" open>
+      <summary><span>导入自己的三维模型</span><span class="summary-detail">课堂展示</span></summary>
       <div class="model-tools-inner">
-        <p>选择或拖入单文件 <code>.glb</code> 后，可拖动旋转、缩放查看；在舞台横向点击可触发十个音区。音区按屏幕位置划分，不对应文物钟体的实测音高。</p>
+        <p>选择或拖入本地单文件 <code>.glb</code>，即可旋转、缩放展示；再次选择模型即可切换不同作品。文件仅在当前浏览器中读取。点击舞台的十个横向音区可发声，音区不对应文物钟体的实测音高。</p>
         <div class="model-actions"><button class="secondary-button" id="loadModel" type="button">选择模型</button><button class="secondary-button" id="resetView" type="button" disabled>复位视角</button><button class="secondary-button" id="showRack" type="button" disabled>回到示意钟架</button><label class="spin-toggle"><input id="spin" type="checkbox" disabled> 自动旋转</label></div>
         <input id="modelFile" type="file" accept=".glb,model/gltf-binary" hidden>
-        <p class="model-status" id="modelStatus" role="status">无需模型即可演奏。支持包含全部资源的未压缩单文件 GLB；不支持多文件 GLTF 或需联网解码的压缩扩展。</p>
+        <p class="model-status" id="modelStatus" role="status">请选择模型开始课堂展示。支持不超过 100 MB、包含全部纹理与数据的未压缩单文件 GLB；刷新页面后重新选择文件即可。</p>
+        <a id="onlineVersion" class="home-link" href="https://akonmar-arch.github.io/icuc-ai-interactive/bianzhong/play.html" target="_blank" rel="noopener" hidden>打开网页版 · 在线导入模型 ↗</a>
       </div>
     </details>
     <footer class="source-note">本体验使用示意图形与六个非谐分音合成音色；并非文物实录，也未模拟“一钟双音”。<a href="https://haner199022.github.io/ireland-study-tour/bianzhong.html" target="_blank" rel="noopener noreferrer">查看原始案例 <span aria-hidden="true">↗</span></a></footer>
