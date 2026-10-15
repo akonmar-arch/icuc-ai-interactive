@@ -216,16 +216,19 @@
     if (event.key === 'Escape') { stopSequence(); $('status').textContent = '演奏已停止。'; }
   });
 
-  function showRack(message) {
+  function showRack(message, preview = false) {
     modelReady = false; mv.hidden = true; rack.hidden = false; rack.style.display = 'block';
+    $('modelPreview').hidden = !preview;
+    if (preview) { rack.hidden = true; rack.style.display = 'none'; }
     activeBellMap = false; clearModelMarkers();
     updateKeyLocations(false);
-    $('modeLabel').textContent = '示意钟架 · 浏览器合成钟声';
-    $('stageHint').textContent = '点击钟体，听见从左到右的音高变化';
+    $('modeLabel').textContent = preview ? '双层编钟 · 模型预览' : '示意钟架 · 浏览器合成钟声';
+    $('stageHint').textContent = preview ? '模型预览 · 载入完成后开启三维交互' : '点击钟体，听见从左到右的音高变化';
     mv.autoRotate = false; $('spin').checked = false;
     ['resetView', 'showRack', 'spin'].forEach(id => { $(id).disabled = true; });
+    $('showRack').disabled = !preview;
     $('loadModel').textContent = '选择模型';
-    if (message) $('modelStatus').textContent = message;
+    if (message) { $('modelStatus').textContent = message; $('previewStatus').textContent = message; }
   }
   function releaseModel() {
     clearTimeout(modelLoadTimer); mv.removeAttribute('src');
@@ -246,11 +249,11 @@
   }
   async function displayModel(source, name, mapped, attempt) {
     await ensureModelViewer(); if (attempt !== fileAttempt) return;
-    releaseModel(); showRack(); modelName = name; activeBellMap = mapped;
+    releaseModel(); showRack(`正在载入：${name}，完成后可旋转与演奏……`, true); modelName = name; activeBellMap = mapped;
     mv.cameraOrbit = mapped ? defaultOrbit() : '180deg 78deg auto';
     modelURL = typeof source === 'string' ? source : URL.createObjectURL(source);
     mv.src = modelURL;
-    modelLoadTimer = setTimeout(() => { if (attempt === fileAttempt && !modelReady) { releaseModel(); showRack('模型载入超时，已保留可演奏的示意钟架。可点击“恢复默认模型”重试。'); } }, 120000);
+    modelLoadTimer = setTimeout(() => { if (attempt === fileAttempt && !modelReady) { releaseModel(); showRack('三维模型载入超时，当前保留模型预览。可点击“恢复默认模型”重试，或主动切换示意钟架。', true); } }, 120000);
   }
   function defaultOrbit() {
     return `180deg 78deg ${window.matchMedia('(max-width:650px)').matches ? '100%' : '65%'}`;
@@ -258,9 +261,10 @@
   async function loadDefaultModel() {
     if (location.protocol === 'file:') return;
     const attempt = ++fileAttempt;
-    $('modelStatus').textContent = '正在载入默认双层编钟模型，载入后可逐钟演奏；示意钟架仍可使用……';
+    releaseModel();
+    showRack('正在载入默认双层编钟模型，完成后可旋转、逐钟演奏……', true);
     try { await displayModel(MODEL.url + '?v=default-bells-1', MODEL.name, true, attempt); }
-    catch (_) { if (attempt === fileAttempt) showRack('默认模型暂未载入。可点击“恢复默认模型”重试，或导入自己的 GLB。'); }
+    catch (_) { if (attempt === fileAttempt) showRack('默认模型暂未载入，当前保留模型预览。可点击“恢复默认模型”重试，或导入自己的 GLB。', true); }
   }
   async function loadModel(file) {
     if (!file) return;
@@ -283,12 +287,12 @@
       await displayModel(file, file.name, file.size === MODEL.byteLength && gltf.accessors?.some(accessor => accessor.count === 888257), attempt);
     } catch (error) {
       const message = /[\u4e00-\u9fff]/.test(error.message || '') ? error.message : '模型未能载入，请检查文件格式与资源是否完整';
-      if (attempt === fileAttempt) showRack(`${message}。示意钟架仍可正常演奏。`);
+      if (attempt === fileAttempt) { releaseModel(); showRack(`${message}。当前保留模型预览，可重试或切换示意钟架。`, true); }
     }
   }
-  mv.addEventListener('load', () => {
-    if (!modelURL) return;
-    clearTimeout(modelLoadTimer); modelReady = true; rack.hidden = true; rack.style.display = 'none'; mv.hidden = false;
+  mv.addEventListener('load', event => {
+    if (!modelURL || modelReady || (event.detail?.url && new URL(event.detail.url, document.baseURI).href !== new URL(modelURL, document.baseURI).href)) return;
+    clearTimeout(modelLoadTimer); modelReady = true; rack.hidden = true; rack.style.display = 'none'; $('modelPreview').hidden = true; mv.hidden = false;
     $('modeLabel').textContent = activeBellMap ? '双层编钟 · 十一钟逐钟演奏' : '自载三维模型 · 浏览器合成钟声';
     $('stageHint').textContent = activeBellMap ? '点击真实钟体或音名演奏 · 木架与空白不发声' : '拖动旋转 · 缩放查看 · 点击十一个横向音区发声';
     if (activeBellMap) createModelMarkers();
@@ -298,9 +302,13 @@
     $('modelStatus').textContent = activeBellMap ? `已载入：${modelName}。11 只钟分别绑定 11 个音，钟体、音名和下方音键一一对应。` : `已载入：${modelName}。当前使用十一个横向演奏音区；点击“恢复默认模型”可回到逐钟映射。`;
   });
   mv.addEventListener('progress', event => {
-    if (modelURL && !modelReady) $('modelStatus').textContent = `正在载入：${modelName}（${Math.round(event.detail.totalProgress * 100)}%）……`;
+    if (modelURL && !modelReady) {
+      const progress = Math.round(event.detail.totalProgress * 100);
+      const message = progress < 100 ? `正在载入：${modelName}（${progress}%）……` : '模型资源已载入，正在准备三维交互……';
+      $('modelStatus').textContent = message; $('previewStatus').textContent = message;
+    }
   });
-  mv.addEventListener('error', () => { releaseModel(); showRack('模型载入失败，已回到可演奏的示意钟架。请确认模型及纹理都包含在同一个 GLB 中。'); });
+  mv.addEventListener('error', () => { if (!modelURL || modelReady) return; releaseModel(); showRack('三维模型暂未载入，当前保留模型预览。请重试，或检查导入的 GLB 是否包含全部纹理。', true); });
   mv.addEventListener('pointerdown', event => { pointerStart = { x: event.clientX, y: event.clientY }; });
   mv.addEventListener('pointercancel', () => { pointerStart = null; });
   mv.addEventListener('pointerup', event => {
@@ -322,7 +330,7 @@
     $('loadModel').disabled = true;
     $('defaultModel').disabled = true;
     $('onlineVersion').hidden = false;
-    $('modelStatus').textContent = '当前以本地文件打开，浏览器会阻止三维组件加载。请点击下方“打开网页版”，在网站中选择 GLB 进行展示；示意钟架仍可演奏。';
+    showRack('当前显示模型预览。请点击下方“打开网页版”载入三维模型，或使用课程启动器打开。', true);
   }
   $('modelFile').addEventListener('change', event => { loadModel(event.target.files[0]); event.target.value = ''; });
   ['dragenter', 'dragover'].forEach(name => stage.addEventListener(name, event => { event.preventDefault(); stage.classList.add('dragover'); }));

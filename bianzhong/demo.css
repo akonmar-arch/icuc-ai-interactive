@@ -16,3 +16,5 @@
 .bell-hotspot[data-visible]{opacity:1;pointer-events:auto}
 .bell-hotspot.is-playing{background:#51247a;color:#fff;border-color:#51247a;box-shadow:0 0 0 7px #c5a16455,0 0 24px #c5a164}
 @media(max-width:650px){.note-keys{grid-template-columns:repeat(6,minmax(0,1fr))}.bell-hotspot{font-size:8px;padding:4px;min-width:38px;min-height:22px}}
+.model-preview{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:50px 30px 70px}.model-preview[hidden]{display:none}.model-preview img{width:100%;height:100%;object-fit:contain;mix-blend-mode:multiply}.model-preview p{position:absolute;left:20px;right:20px;bottom:33px;margin:0;text-align:center;color:#75592e;font-size:12px;line-height:1.6}.stage-bottom{z-index:2}
+@media(max-width:650px){.model-preview{padding:50px 10px 85px}.model-preview p{left:12px;right:12px;font-size:10px;bottom:38px}}

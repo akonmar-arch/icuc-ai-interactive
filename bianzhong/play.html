@@ -6,9 +6,9 @@
   <meta name="theme-color" content="#51247a">
   <title>编钟 · 交互体验</title>
   <meta name="description" content="默认载入双层十一钟模型，每只钟绑定独立音高；可点击钟体、音名或十一音键演奏，也可导入自己的 GLB 模型。">
-  <link rel="stylesheet" href="demo.css?v=default-bells-1">
+  <link rel="stylesheet" href="demo.css?v=model-preview-1">
   <script src="bell-map.js?v=default-bells-1" defer></script>
-  <script src="demo.js?v=default-bells-1" defer></script>
+  <script src="demo.js?v=model-preview-1" defer></script>
 </head>
 <body>
   <main class="experience">
@@ -18,11 +18,12 @@
     </header>
 
     <div class="stage" id="stage">
-      <div class="stage-caption"><span class="mode-label" id="modeLabel">示意钟架 · 浏览器合成钟声</span><span class="pitch-direction">低音 <span aria-hidden="true">⟶</span> 高音</span></div>
-      <svg id="bellRack" viewBox="0 0 1100 390" aria-hidden="true"></svg>
+      <div class="stage-caption"><span class="mode-label" id="modeLabel">双层编钟 · 正在载入三维模型</span><span class="pitch-direction">低音 <span aria-hidden="true">⟶</span> 高音</span></div>
+      <div class="model-preview" id="modelPreview"><img src="assets/models/default-bianzhong-preview.png" alt="默认双层十一钟模型的静态预览" width="771" height="525" fetchpriority="high"><p id="previewStatus" role="status">正在载入三维模型，完成后可旋转、逐钟演奏……</p></div>
+      <svg id="bellRack" viewBox="0 0 1100 390" aria-hidden="true" hidden style="display:none"></svg>
       <model-viewer id="modelViewer" alt="双层十一钟三维模型，可拖动旋转并逐钟演奏" camera-controls disable-tap loading="eager" environment-image="neutral" interaction-prompt="none" shadow-intensity="1" shadow-softness="0.9" exposure="1.05" camera-orbit="180deg 78deg auto" touch-action="pan-y" hidden></model-viewer>
       <div class="note-flash" id="noteFlash" aria-hidden="true"><span id="flashDegree">徵</span><small id="flashPitch">G3</small></div>
-      <div class="stage-bottom"><span id="stageHint">点击钟体，听见从左到右的音高变化</span><span class="five-notes">宫 · 商 · 角 · 徵 · 羽</span></div>
+      <div class="stage-bottom"><span id="stageHint">模型预览 · 载入完成后开启三维交互</span><span class="five-notes">宫 · 商 · 角 · 徵 · 羽</span></div>
     </div>
 
     <section class="performance" aria-label="编钟演奏控制">
