@@ -22,7 +22,7 @@
   .bianzhong-page .mapping-strip { margin:36px 0 0; }
   .bianzhong-page .mapping-strip strong { font-size:17px; }
   .bianzhong-page .studio-demo { grid-template-columns:minmax(240px,.5fr) minmax(0,1.12fr); margin-bottom:30px; }
-  .bianzhong-page .studio-demo .demo-panel { height:690px; }
+  .bianzhong-page .studio-demo .demo-panel { height:1120px; }
   .bianzhong-page .demo-status { color:var(--muted); font-size:12px; margin:18px 0 0; line-height:1.8; }
   .bianzhong-page .demo-source { font-size:12px; color:var(--brand); margin-top:20px; }
   .bianzhong-page .demo-source a { text-underline-offset:4px; }
@@ -59,7 +59,7 @@
     .bianzhong-page .result-figure { scroll-margin-top:90px; }
     .bianzhong-page .reference-layout,.bianzhong-page .task-detail { grid-template-columns:1fr; }
     .bianzhong-page .reference-figure:not(.result-figure) img { height:350px; }
-    .bianzhong-page .studio-demo .demo-panel { height:730px; }
+    .bianzhong-page .studio-demo .demo-panel { height:1160px; }
     .bianzhong-page .handoff-grid { grid-template-columns:1fr; gap:10px; }
   }
   @media(max-width:620px) {
@@ -67,7 +67,7 @@
     .bianzhong-page .opening::before { background:rgba(9,9,16,.65); }
     .bianzhong-page .opening h1 { font-size:clamp(30px,8vw,44px); }
     .bianzhong-page .class-plan-row { grid-template-columns:1fr; gap:5px; padding:17px 0; }
-    .bianzhong-page .studio-demo .demo-panel { height:760px; }
+    .bianzhong-page .studio-demo .demo-panel { height:1100px; }
     .bianzhong-page .demo-head { padding:14px; font-size:11px; }
     .bianzhong-page .demo-status { font-size:11px; }
     .bianzhong-page .sources a { display:block; margin:5px 0; }
