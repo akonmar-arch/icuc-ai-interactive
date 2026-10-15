@@ -5,9 +5,10 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#51247a">
   <title>编钟 · 交互体验</title>
-  <meta name="description" content="点击十枚示意编钟，体验五声音阶与浏览器合成钟声，也可导入本地单文件 GLB 模型。">
-  <link rel="stylesheet" href="demo.css?v=taller-stage-1">
-  <script src="demo.js?v=classroom-import-1" defer></script>
+  <meta name="description" content="默认载入双层十一钟模型，每只钟绑定独立音高；可点击钟体、音名或十一音键演奏，也可导入自己的 GLB 模型。">
+  <link rel="stylesheet" href="demo.css?v=default-bells-1">
+  <script src="bell-map.js?v=default-bells-1" defer></script>
+  <script src="demo.js?v=default-bells-1" defer></script>
 </head>
 <body>
   <main class="experience">
@@ -19,7 +20,7 @@
     <div class="stage" id="stage">
       <div class="stage-caption"><span class="mode-label" id="modeLabel">示意钟架 · 浏览器合成钟声</span><span class="pitch-direction">低音 <span aria-hidden="true">⟶</span> 高音</span></div>
       <svg id="bellRack" viewBox="0 0 1100 390" aria-hidden="true"></svg>
-      <model-viewer id="modelViewer" alt="用户导入的本地三维模型" camera-controls loading="eager" environment-image="neutral" interaction-prompt="none" shadow-intensity="1" shadow-softness="0.9" exposure="1.05" camera-orbit="35deg 78deg auto" touch-action="pan-y" hidden></model-viewer>
+      <model-viewer id="modelViewer" alt="双层十一钟三维模型，可拖动旋转并逐钟演奏" camera-controls disable-tap loading="eager" environment-image="neutral" interaction-prompt="none" shadow-intensity="1" shadow-softness="0.9" exposure="1.05" camera-orbit="180deg 78deg auto" touch-action="pan-y" hidden></model-viewer>
       <div class="note-flash" id="noteFlash" aria-hidden="true"><span id="flashDegree">徵</span><small id="flashPitch">G3</small></div>
       <div class="stage-bottom"><span id="stageHint">点击钟体，听见从左到右的音高变化</span><span class="five-notes">宫 · 商 · 角 · 徵 · 羽</span></div>
     </div>
@@ -30,16 +31,16 @@
         <div class="playback-controls"><button class="primary-button" id="playSequence" type="button"><span aria-hidden="true">▶</span> 奏一段</button><button class="secondary-button" id="stopSequence" type="button" disabled><span aria-hidden="true">■</span> 停止</button></div>
         <div class="sound-controls"><button class="mute-button" id="muteButton" type="button" aria-pressed="false">静音</button><label class="volume-label" for="volume">音量</label><input id="volume" type="range" min="0" max="100" value="65" aria-label="演奏音量"><output for="volume" id="volumeValue">65%</output></div>
       </div>
-      <p class="status" id="status" role="status" aria-live="polite">点击钟体或音键开始，也可用键盘数字 1—0 演奏。</p>
+      <p class="status" id="status" role="status" aria-live="polite">点击钟体、音名或音键演奏，也可使用键盘 1—9、0 和减号键。</p>
     </section>
 
     <details class="model-tools" id="modelTools" open>
       <summary><span>导入自己的三维模型</span><span class="summary-detail">课堂展示</span></summary>
       <div class="model-tools-inner">
-        <p>选择或拖入本地单文件 <code>.glb</code>，即可旋转、缩放展示；再次选择模型即可切换不同作品。文件仅在当前浏览器中读取。点击舞台的十个横向音区可发声，音区不对应文物钟体的实测音高。</p>
-        <div class="model-actions"><button class="secondary-button" id="loadModel" type="button">选择模型</button><button class="secondary-button" id="resetView" type="button" disabled>复位视角</button><button class="secondary-button" id="showRack" type="button" disabled>回到示意钟架</button><label class="spin-toggle"><input id="spin" type="checkbox" disabled> 自动旋转</label></div>
+        <p>默认模型的 11 只钟分别绑定 G3、A3、C4、D4、E4、G4、A4、C5、D5、E5、G5；点击真实钟体或对应音名演奏，木架与空白不发声。可导入自己的单文件 <code>.glb</code> 展示；其他模型使用十一个横向演奏音区。</p>
+        <div class="model-actions"><button class="secondary-button" id="loadModel" type="button">选择模型</button><button class="secondary-button" id="defaultModel" type="button">恢复默认模型</button><button class="secondary-button" id="resetView" type="button" disabled>复位视角</button><button class="secondary-button" id="showRack" type="button" disabled>回到示意钟架</button><label class="spin-toggle"><input id="spin" type="checkbox" disabled> 自动旋转</label></div>
         <input id="modelFile" type="file" accept=".glb,model/gltf-binary" hidden>
-        <p class="model-status" id="modelStatus" role="status">请选择模型开始课堂展示。支持不超过 100 MB、包含全部纹理与数据的未压缩单文件 GLB；刷新页面后重新选择文件即可。</p>
+        <p class="model-status" id="modelStatus" role="status">正在准备默认双层编钟。自己的模型仅在当前浏览器读取，支持不超过 100 MB、包含全部纹理与数据的未压缩单文件 GLB。</p>
         <a id="onlineVersion" class="home-link" href="https://akonmar-arch.github.io/icuc-ai-interactive/bianzhong/play.html" target="_blank" rel="noopener" hidden>打开网页版 · 在线导入模型 ↗</a>
       </div>
     </details>
